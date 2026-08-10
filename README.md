@@ -5,7 +5,6 @@ MacBook çentiğiyle fiziksel olarak hizalanan, SwiftUI ile yazılmış yerel bi
 ## Özellikler
 
 - Gerçek çentik geometrisini `NSScreen.auxiliaryTopLeftArea` ve `auxiliaryTopRightArea` ile algılar; boşta tamamen fiziksel çentiğin arkasına gizlenir.
-- Alcove tarzı tek parça, kenarlıksız notch şekli boşta tamamen gizlenir; hover ile çentiğin iki yanına yatay açılır ve geniş görünümde aşağı doğru büyür.
 - Chrome/YouTube, Safari, Arc, Music ve Spotify dahil macOS “Şu An Çalıyor” oturumundaki medyanın gerçek kapağını, geçen/kalan süresini ve canlı ilerleme çizgisini gösterir.
 - Sistem genelinde oynat/duraklat, önceki/sonraki parça, ±15 saniye sarma ve ilerleme çizgisinden konum değiştirme denetimleri sunar.
 - Medya etkinken adaya tıklamak doğrudan Medya görünümünü, boşta tıklamak genel menüyü açar; ada dışına tıklamak geniş görünümü kapatır.
