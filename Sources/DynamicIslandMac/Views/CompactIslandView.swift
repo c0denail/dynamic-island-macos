@@ -42,14 +42,12 @@ struct CompactIslandView: View {
                 }
                 .lineLimit(1)
             }
-        case .timer, .focus:
+        case .timer:
             statusLabel(
-                icon: timer.mode == .focus ? "moon.stars.fill" : "timer",
-                title: timer.mode.rawValue,
-                subtitle: timer.isRunning ? "Çalışıyor" : "Duraklatıldı"
+                icon: activityMode == .stopwatch ? "stopwatch.fill" : "timer",
+                title: activityMode.rawValue,
+                subtitle: clockTimer.state(for: activityMode) == .running ? "macOS Saat · Çalışıyor" : "macOS Saat · Duraklatıldı"
             )
-        case .clockTimer:
-            statusLabel(icon: "clock.fill", title: "macOS Saat", subtitle: "Canlı sayaç")
         case let .volume(value, isMuted):
             HStack(spacing: 8) {
                 Image(systemName: volumeIcon(value: value, isMuted: isMuted))
@@ -105,23 +103,13 @@ struct CompactIslandView: View {
 
                 whiteProgress(media.progress)
             }
-        case .timer, .focus:
+        case .timer:
             VStack(alignment: .trailing, spacing: 4) {
-                Text(timer.displayedTime.islandClock)
+                Text(clockTimer.displayedTime(for: activityMode, fallbackDuration: timer.duration).islandClock)
                     .font(.system(size: 13, weight: .bold, design: .rounded))
                     .monospacedDigit()
                     .contentTransition(.numericText())
-                whiteProgress(timer.mode == .stopwatch ? 1 : timer.progress)
-            }
-        case .clockTimer:
-            if let nativeTimer = clockTimer.current {
-                VStack(alignment: .trailing, spacing: 4) {
-                    Text(nativeTimer.remaining.islandClock)
-                        .font(.system(size: 13, weight: .bold, design: .rounded))
-                        .monospacedDigit()
-                        .contentTransition(.numericText())
-                    whiteProgress(nativeTimer.progress)
-                }
+                whiteProgress(clockTimer.progress(for: activityMode) ?? 1)
             }
         case let .volume(value, isMuted):
             VStack(alignment: .trailing, spacing: 4) {
@@ -182,6 +170,10 @@ struct CompactIslandView: View {
             }
             .lineLimit(1)
         }
+    }
+
+    private var activityMode: TimerMode {
+        clockTimer.presentationMode(preferred: timer.mode)
     }
 
     private func whiteProgress(_ progress: Double) -> some View {

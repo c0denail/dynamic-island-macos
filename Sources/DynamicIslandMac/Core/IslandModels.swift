@@ -42,8 +42,6 @@ enum CompactActivity: Equatable {
     case idle
     case media
     case timer
-    case focus
-    case clockTimer
     case volume(value: Float, isMuted: Bool)
     case brightness(value: Float)
     case notification(MirroredNotification)
@@ -68,22 +66,49 @@ struct MirroredNotification: Identifiable, Equatable, Sendable {
     }
 }
 
-struct ClockTimerSnapshot: Equatable {
-    let duration: TimeInterval
-    let fireDate: Date
-    let title: String
+enum ClockActivityState: Equatable, Sendable {
+    case stopped
+    case paused
+    case running
+}
 
-    var remaining: TimeInterval { max(0, fireDate.timeIntervalSinceNow) }
+struct ClockTimerSnapshot: Equatable, Sendable {
+    let identifier: String
+    let duration: TimeInterval
+    let title: String
+    let state: ClockActivityState
+    let fireDate: Date?
+    let remainingAtSnapshot: TimeInterval
+    let capturedAt: Date
+
+    var remaining: TimeInterval {
+        if state == .running, let fireDate {
+            return max(0, fireDate.timeIntervalSinceNow)
+        }
+        return max(0, remainingAtSnapshot)
+    }
     var progress: Double {
         guard duration > 0 else { return 0 }
         return min(1, max(0, (duration - remaining) / duration))
     }
 }
 
+struct ClockStopwatchSnapshot: Equatable, Sendable {
+    let identifier: String
+    let state: ClockActivityState
+    let baseElapsed: TimeInterval
+    let startDate: Date?
+    let capturedAt: Date
+
+    var elapsed: TimeInterval {
+        guard state == .running else { return max(0, baseElapsed) }
+        return max(0, baseElapsed + Date().timeIntervalSince(capturedAt))
+    }
+}
+
 enum TimerMode: String, CaseIterable, Identifiable {
     case countdown = "Geri Sayım"
     case stopwatch = "Kronometre"
-    case focus = "Odak"
 
     var id: String { rawValue }
 }

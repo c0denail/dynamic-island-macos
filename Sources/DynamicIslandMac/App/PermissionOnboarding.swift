@@ -299,11 +299,11 @@ private struct PermissionOnboardingView: View {
             }
 
             VStack(spacing: 8) {
-                permissionRow(icon: "bell.badge.fill", title: "Bildirimler", detail: "Sayaç ve odak uyarıları", state: manager.notificationPermission)
+                permissionRow(icon: "bell.badge.fill", title: "Bildirimler", detail: "Sayaç uyarıları", state: manager.notificationPermission)
                 permissionRow(icon: "location.fill", title: "Konum / Wi‑Fi", detail: "Yakındaki Wi‑Fi ağlarının adları", state: manager.locationPermission)
                 permissionRow(icon: "dot.radiowaves.left.and.right", title: "Bluetooth", detail: "Eşleşmiş aygıtları gösterme ve bağlanma", state: manager.bluetoothPermission)
                 permissionRow(icon: "music.note", title: "Medya otomasyonu", detail: "Music ve Spotify denetimi", state: manager.automationPermission)
-                permissionRow(icon: "bell.and.waves.left.and.right.fill", title: "Erişilebilirlik", detail: "Sistem bildirimlerini Dynamic Island’da gösterme", state: manager.accessibilityPermission)
+                permissionRow(icon: "bell.and.waves.left.and.right.fill", title: "Erişilebilirlik", detail: "Bildirimleri gösterme ve macOS Saat’i denetleme", state: manager.accessibilityPermission)
             }
 
             if manager.accessibilityPermission == .actionRequired {

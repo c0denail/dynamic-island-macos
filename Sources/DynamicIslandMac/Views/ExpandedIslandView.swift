@@ -129,6 +129,7 @@ private struct OverviewSection: View {
     @EnvironmentObject private var island: IslandController
     @EnvironmentObject private var media: MediaService
     @EnvironmentObject private var timer: TimerService
+    @EnvironmentObject private var clockTimer: ClockTimerService
     @EnvironmentObject private var system: SystemStatusService
 
     var body: some View {
@@ -141,16 +142,16 @@ private struct OverviewSection: View {
                     island.open(.timer)
                 } label: {
                     HStack(spacing: 10) {
-                        ProgressRing(progress: timer.mode == .stopwatch ? nil : timer.progress, color: timerColor, size: 39) {
-                            Image(systemName: timer.mode == .focus ? "moon.stars.fill" : "timer")
+                        ProgressRing(progress: clockTimer.progress(for: activityMode), color: timerColor, size: 39) {
+                            Image(systemName: activityMode == .stopwatch ? "stopwatch.fill" : "timer")
                                 .font(.system(size: 12, weight: .bold))
                                 .foregroundStyle(timerColor)
                         }
                         VStack(alignment: .leading, spacing: 2) {
-                            Text(timer.mode.rawValue)
+                            Text(activityMode.rawValue)
                                 .font(.system(size: 9, weight: .bold))
                                 .foregroundStyle(.white.opacity(0.48))
-                            Text(timer.displayedTime.islandClock)
+                            Text(clockTimer.displayedTime(for: activityMode, fallbackDuration: timer.duration).islandClock)
                                 .font(.system(size: 18, weight: .bold, design: .rounded))
                                 .monospacedDigit()
                         }
@@ -178,10 +179,8 @@ private struct OverviewSection: View {
 
                 HStack(spacing: 8) {
                     QuickAction(icon: "doc.on.doc", title: "Özeti kopyala", color: IslandPalette.cyan, action: island.copySystemSummary)
-                    QuickAction(icon: "moon.stars", title: "25 dk odak", color: IslandPalette.purple) {
-                        timer.setPreset(minutes: 25, mode: .focus)
-                        timer.start()
-                        island.showMessage(icon: "moon.stars.fill", title: "Odak oturumu başladı", color: IslandPalette.purple)
+                    QuickAction(icon: "clock", title: "Saat'te aç", color: IslandPalette.orange) {
+                        clockTimer.openClock(mode: activityMode)
                     }
                 }
             }
@@ -190,7 +189,11 @@ private struct OverviewSection: View {
     }
 
     private var timerColor: Color {
-        timer.mode == .focus ? IslandPalette.purple : IslandPalette.orange
+        activityMode == .stopwatch ? IslandPalette.cyan : IslandPalette.orange
+    }
+
+    private var activityMode: TimerMode {
+        clockTimer.presentationMode(preferred: timer.mode)
     }
 }
 

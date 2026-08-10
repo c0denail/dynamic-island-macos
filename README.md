@@ -9,9 +9,8 @@ MacBook çentiğiyle fiziksel olarak hizalanan, SwiftUI ile yazılmış yerel bi
 - Sistem genelinde oynat/duraklat, önceki/sonraki parça, ±15 saniye sarma ve ilerleme çizgisinden konum değiştirme denetimleri sunar.
 - Medya etkinken adaya tıklamak doğrudan Medya görünümünü, boşta tıklamak genel menüyü açar; ada dışına tıklamak geniş görünümü kapatır.
 - macOS bildirim banner'larını uygulama simgesi, başlık ve içerikle Dynamic Island'da gösterir; art arda gelen bildirimleri sıraya alır ve adaya tıklanınca gerçek bildirim eylemini veya kaynak uygulamayı açar.
-- Geri sayım, kronometre ve 25 dakikalık odak oturumu içerir.
-- macOS Saat uygulamasında çalışan timer'ları `mobiletimerd` verisinden salt-okunur olarak canlı gösterir.
-- Sayaç bittiğinde yerel ses ve macOS bildirimi verir.
+- Geri sayım ve kronometreyi doğrudan macOS Saat uygulamasında başlatır, duraklatır, sürdürür ve sıfırlar.
+- macOS Saat içinde veya Dynamic Island’dan başlatılan sayaç ve kronometreleri `mobiletimerd` durumundan canlı gösterir; Clock tek doğruluk kaynağıdır.
 - CoreAudio ile klavye, AirPods ve Denetim Merkezi ses değişikliklerini; solda ses değeri, sağda düz beyaz seviye çubuğu olacak biçimde yatay Dynamic Island HUD'u olarak gösterir.
 - Yerleşik ekranın klavye veya Denetim Merkezi üzerinden değişen parlaklığını aynı yatay düzende; solda güneş simgesi/yüzde, sağda düz beyaz seviye çubuğuyla gösterir.
 - Sistem görünümündeki Wi‑Fi ve Bluetooth kartları açılır bağlantı panelleridir: radyoları açıp kapatır, yakındaki Wi‑Fi ağlarını ve eşleşmiş Bluetooth aygıtlarını listeler, bağlantı kurar veya keser.
@@ -66,7 +65,7 @@ Düşük Güç Modu ilk kez değiştirildiğinde macOS standart yönetici onayı
 
 Uygulamayı kaldırırken güç yardımcısını da silmek isterseniz önce `sudo launchctl bootout system/dev.c0denail.DynamicIslandMac.PowerHelper`, ardından ilgili dosyalar için `sudo rm /Library/LaunchDaemons/dev.c0denail.DynamicIslandMac.PowerHelper.plist /Library/PrivilegedHelperTools/dev.c0denail.DynamicIslandMac.PowerHelper` komutlarını çalıştırın.
 
-Apple'ın Clock uygulaması üçüncü taraflara timer oluşturma/başlatma API'si veya AppleScript sözlüğü sunmadığı için ada, Clock içinde başlatılan timer'ı canlı izler ve **Saat'te Aç** eylemiyle doğrudan Timer ekranına götürür. Ada içinden başlatılan bağımsız odak ve geri sayım sayaçları da çalışmaya devam eder.
+Apple'ın Clock uygulaması timer/kronometre yönetimi için herkese açık bir macOS API'si veya AppleScript sözlüğü sunmadığından uygulama, mevcut Erişilebilirlik izniyle Clock’un kararlı kontrol kimliklerini kullanır. Clock durum dosyaları yalnızca okunur; veritabanına veya tercih dosyasına yazılmaz. Arayüz kimlikleri gelecekteki büyük bir macOS güncellemesinde değişirse köprünün uyarlanması gerekebilir.
 
 Oturum açılışında çalıştır seçeneği için uygulamayı önce `dist` klasöründen `/Applications` klasörüne taşımanız önerilir.
 
@@ -75,8 +74,8 @@ Oturum açılışında çalıştır seçeneği için uygulamayı önce `dist` kl
 - `IslandPanelCoordinator`: Çentiğe hizalanan şeffaf, tüm Spaces üzerinde görünen `NSPanel`.
 - `IslandController`: Sunum durumu, hover davranışı, klavye kısayolu ve etkinlik önceliği.
 - `MediaService`: Sistem Now Playing verisi, Chrome/YouTube dahil genel medya denetimi ve Music/Spotify Apple Events yedeği.
-- `TimerService`: Hassas geri sayım, kronometre ve bildirimler.
-- `ClockTimerService`: macOS Clock timer verisinin salt-okunur canlı senkronu.
+- `TimerService`: Sayaç/kronometre türü ve seçili geri sayım süresi.
+- `ClockTimerService`: macOS Clock timer/kronometre durumunun salt-okunur canlı senkronu ve Erişilebilirlik tabanlı Clock komut köprüsü.
 - `SystemStatusService`: IOKit pil, Network ağ, CoreAudio ses, yerleşik ekran parlaklığı ve tek sefer yetkilendirilen XPC yardımcısıyla Düşük Güç Modu yönetimi.
 - `ConnectivityService`: CoreWLAN Wi‑Fi tarama/bağlanma ve IOBluetooth aygıt/güç yönetimi.
 - `NotificationMirrorService`: Bildirim Merkezi banner'larını erişilebilirlik ağacından algılama, içerik çıkarma ve gerçek bildirime yönlendirme.

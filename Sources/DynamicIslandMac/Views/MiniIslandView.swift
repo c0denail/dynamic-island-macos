@@ -4,6 +4,7 @@ struct MiniIslandView: View {
     @EnvironmentObject private var island: IslandController
     @EnvironmentObject private var media: MediaService
     @EnvironmentObject private var timer: TimerService
+    @EnvironmentObject private var clockTimer: ClockTimerService
 
     var body: some View {
         HStack(spacing: 10) {
@@ -22,11 +23,7 @@ struct MiniIslandView: View {
         case .media:
             ArtworkGlyph(size: 24)
         case .timer:
-            statusGlyph("timer", color: IslandPalette.orange)
-        case .focus:
-            statusGlyph("moon.stars.fill", color: IslandPalette.purple)
-        case .clockTimer:
-            statusGlyph("clock.fill", color: IslandPalette.orange)
+            statusGlyph(activityMode == .stopwatch ? "stopwatch.fill" : "timer", color: timerColor)
         case let .volume(_, isMuted):
             statusGlyph(isMuted ? "speaker.slash.fill" : "speaker.wave.2.fill", color: IslandPalette.cyan)
         case let .brightness(value):
@@ -49,15 +46,11 @@ struct MiniIslandView: View {
         case .media:
             MiniWaveform(isActive: media.isPlaying, color: IslandPalette.primary)
                 .frame(width: 28, height: 18)
-        case .timer, .focus:
-            Text(timer.displayedTime.islandClock)
+        case .timer:
+            Text(clockTimer.displayedTime(for: activityMode, fallbackDuration: timer.duration).islandClock)
                 .font(.system(size: 11, weight: .bold, design: .rounded))
                 .monospacedDigit()
-                .foregroundStyle(timer.mode == .focus ? IslandPalette.purple : IslandPalette.orange)
-        case .clockTimer:
-            Image(systemName: "clock")
-                .font(.system(size: 10, weight: .bold))
-                .foregroundStyle(IslandPalette.orange)
+                .foregroundStyle(timerColor)
         case let .volume(value, _):
             Text("\(Int((value * 100).rounded()))%")
                 .font(.system(size: 10, weight: .bold, design: .rounded))
@@ -89,5 +82,13 @@ struct MiniIslandView: View {
             .foregroundStyle(color)
             .frame(width: 24, height: 24)
             .background(color.opacity(0.14), in: Circle())
+    }
+
+    private var timerColor: Color {
+        activityMode == .stopwatch ? IslandPalette.cyan : IslandPalette.orange
+    }
+
+    private var activityMode: TimerMode {
+        clockTimer.presentationMode(preferred: timer.mode)
     }
 }

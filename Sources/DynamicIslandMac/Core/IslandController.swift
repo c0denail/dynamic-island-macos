@@ -32,14 +32,19 @@ final class IslandController: ObservableObject {
     private var localMonitor: Any?
 
     private init() {
-        timer.$isRunning
+        clockTimer.$hasActiveActivity
             .combineLatest(media.$isPlaying)
-            .sink { [weak self] timerRunning, mediaPlaying in
+            .sink { [weak self] timerActive, mediaPlaying in
                 guard let self else { return }
-                if self.presentation == .mini, timerRunning || mediaPlaying {
+                if self.presentation == .mini, timerActive || mediaPlaying {
                     self.presentation = .compact
                 }
             }
+            .store(in: &cancellables)
+
+        clockTimer.$activeMode
+            .compactMap { $0 }
+            .sink { [weak self] mode in self?.timer.mode = mode }
             .store(in: &cancellables)
 
         system.$volumeEvent
@@ -62,12 +67,11 @@ final class IslandController: ObservableObject {
             }
             .store(in: &cancellables)
 
-        clockTimer.$current
+        clockTimer.$hasActiveActivity
             .dropFirst()
-            .sink { [weak self] timer in
+            .sink { [weak self] isActive in
                 guard let self,
-                      timer != nil,
-                      UserDefaults.standard.object(forKey: "syncClockTimers") == nil || UserDefaults.standard.bool(forKey: "syncClockTimers")
+                      isActive
                 else { return }
                 if self.presentation == .mini { self.presentation = .compact }
             }
@@ -83,10 +87,7 @@ final class IslandController: ObservableObject {
 
     var compactActivity: CompactActivity {
         if let temporaryMessage { return temporaryMessage }
-        if clockTimer.current != nil { return .clockTimer }
-        if timer.isRunning {
-            return timer.mode == .focus ? .focus : .timer
-        }
+        if clockTimer.hasActiveActivity { return .timer }
         if media.isPlaying || media.hasActiveSource { return .media }
         return .idle
     }
@@ -102,7 +103,6 @@ final class IslandController: ObservableObject {
 
     func stop() {
         media.stop()
-        timer.stopTicker()
         clockTimer.stop()
         system.stop()
         connectivity.stop()
@@ -145,7 +145,7 @@ final class IslandController: ObservableObject {
         }
         if media.hasActiveSource {
             open(.media)
-        } else if timer.isRunning || clockTimer.current != nil {
+        } else if clockTimer.hasActiveActivity {
             open(.timer)
         } else {
             open(.overview)
@@ -187,7 +187,7 @@ final class IslandController: ObservableObject {
             try? await Task.sleep(for: .seconds(duration))
             guard !Task.isCancelled, let self else { return }
             self.temporaryMessage = nil
-            if !self.timer.isRunning && !self.media.isPlaying && self.clockTimer.current == nil {
+            if !self.clockTimer.hasActiveActivity && !self.media.isPlaying {
                 self.presentation = .mini
             }
         }
@@ -265,7 +265,7 @@ final class IslandController: ObservableObject {
     }
 
     private var preferredCollapsedPresentation: IslandPresentation {
-        timer.isRunning || media.isPlaying || clockTimer.current != nil ? .compact : .mini
+        clockTimer.hasActiveActivity || media.isPlaying ? .compact : .mini
     }
 
     private func installHotKey() {

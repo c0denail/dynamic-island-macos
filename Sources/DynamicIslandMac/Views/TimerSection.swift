@@ -6,37 +6,53 @@ struct TimerSection: View {
 
     var body: some View {
         VStack(spacing: 10) {
-            if let nativeTimer = clockTimer.current {
-                HStack(spacing: 10) {
-                    Image(systemName: "clock.fill")
-                        .foregroundStyle(IslandPalette.orange)
-                    VStack(alignment: .leading, spacing: 1) {
-                        Text("macOS Saat ile canlı senkron")
-                            .font(.system(size: 10, weight: .bold))
-                        Text(nativeTimer.title)
-                            .font(.system(size: 8, weight: .medium))
-                            .foregroundStyle(.white.opacity(0.42))
-                    }
-                    Spacer()
-                    Text(nativeTimer.remaining.islandClock)
-                        .font(.system(size: 17, weight: .bold, design: .rounded))
-                        .monospacedDigit()
-                        .foregroundStyle(IslandPalette.orange)
-                    Button("Saat'te Aç", action: clockTimer.openClock)
-                        .font(.system(size: 9, weight: .bold))
-                        .buttonStyle(.bordered)
-                        .controlSize(.small)
-                }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 8)
-                .background(IslandPalette.orange.opacity(0.1), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-            }
-
+            synchronizationHeader
             timerControls
+
+            if let error = clockTimer.lastError {
+                Text(error)
+                    .font(.system(size: 8.5, weight: .semibold))
+                    .foregroundStyle(.red)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .lineLimit(2)
+            }
         }
         .padding(18)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(IslandPalette.surface, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+    }
+
+    private var synchronizationHeader: some View {
+        HStack(spacing: 10) {
+            Image(systemName: timer.mode == .stopwatch ? "stopwatch.fill" : "clock.fill")
+                .foregroundStyle(timerColor)
+
+            VStack(alignment: .leading, spacing: 1) {
+                Text("macOS Saat ile canlı")
+                    .font(.system(size: 10, weight: .bold))
+                Text(activityDetail)
+                    .font(.system(size: 8, weight: .medium))
+                    .foregroundStyle(.white.opacity(0.42))
+                    .lineLimit(1)
+            }
+
+            Spacer()
+
+            if clockTimer.isActive(timer.mode) {
+                Text(clockTimer.displayedTime(for: timer.mode, fallbackDuration: timer.duration).islandClock)
+                    .font(.system(size: 17, weight: .bold, design: .rounded))
+                    .monospacedDigit()
+                    .foregroundStyle(timerColor)
+            }
+
+            Button("Saat'te Aç") { clockTimer.openClock(mode: timer.mode) }
+                .font(.system(size: 9, weight: .bold))
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(timerColor.opacity(0.1), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
     }
 
     private var timerControls: some View {
@@ -49,48 +65,65 @@ struct TimerSection: View {
                 }
                 .pickerStyle(.segmented)
                 .labelsHidden()
-                .onChange(of: timer.mode) { _, _ in timer.reset() }
 
-                HStack(spacing: 8) {
-                    PresetButton(title: "5 dk", selected: timer.duration == 300) { timer.setPreset(minutes: 5) }
-                    PresetButton(title: "15 dk", selected: timer.duration == 900) { timer.setPreset(minutes: 15) }
-                    PresetButton(title: "25 dk", selected: timer.duration == 1500) { timer.setPreset(minutes: 25) }
-                    PresetButton(title: "45 dk", selected: timer.duration == 2700) { timer.setPreset(minutes: 45) }
+                if timer.mode == .countdown {
+                    HStack(spacing: 8) {
+                        PresetButton(title: "5 dk", selected: timer.duration == 300) { timer.setPreset(minutes: 5) }
+                        PresetButton(title: "15 dk", selected: timer.duration == 900) { timer.setPreset(minutes: 15) }
+                        PresetButton(title: "25 dk", selected: timer.duration == 1500) { timer.setPreset(minutes: 25) }
+                        PresetButton(title: "45 dk", selected: timer.duration == 2700) { timer.setPreset(minutes: 45) }
+                    }
+                    .disabled(clockTimer.current != nil)
+
+                    Text(clockTimer.current == nil ? "Başlatınca sayaç macOS Saat uygulamasında oluşturulur." : "Sayaç Clock’tan canlı okunuyor; süreyi değiştirmek için önce sıfırlayın.")
+                        .font(.system(size: 9, weight: .medium))
+                        .foregroundStyle(.white.opacity(0.38))
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                } else {
+                    Text("Başlat, durdur ve sıfırla işlemleri doğrudan macOS Saat kronometresiyle eşitlenir.")
+                        .font(.system(size: 9, weight: .medium))
+                        .foregroundStyle(.white.opacity(0.38))
+                        .frame(maxWidth: .infinity, alignment: .leading)
                 }
-
-                Text(timer.mode == .stopwatch ? "Tur yerine sıfırla ile yeni bir ölçüm başlatın." : "Sayaç bittiğinde ses ve macOS bildirimi alırsınız.")
-                    .font(.system(size: 9, weight: .medium))
-                    .foregroundStyle(.white.opacity(0.38))
-                    .frame(maxWidth: .infinity, alignment: .leading)
             }
             .frame(maxWidth: .infinity)
 
-            ZStack {
-                ProgressRing(progress: timer.mode == .stopwatch ? nil : timer.progress, color: timerColor, size: 146) {
-                    VStack(spacing: 4) {
-                        Image(systemName: timer.mode == .focus ? "moon.stars.fill" : timer.mode == .stopwatch ? "stopwatch.fill" : "timer")
-                            .font(.system(size: 16, weight: .bold))
-                            .foregroundStyle(timerColor)
-                        Text(timer.displayedTime.islandClock)
-                            .font(.system(size: 26, weight: .bold, design: .rounded))
-                            .monospacedDigit()
-                            .contentTransition(.numericText())
-                    }
+            ProgressRing(progress: clockTimer.progress(for: timer.mode), color: timerColor, size: 146) {
+                VStack(spacing: 4) {
+                    Image(systemName: timer.mode == .stopwatch ? "stopwatch.fill" : "timer")
+                        .font(.system(size: 16, weight: .bold))
+                        .foregroundStyle(timerColor)
+                    Text(clockTimer.displayedTime(for: timer.mode, fallbackDuration: timer.duration).islandClock)
+                        .font(.system(size: 26, weight: .bold, design: .rounded))
+                        .monospacedDigit()
+                        .contentTransition(.numericText())
                 }
             }
 
             VStack(spacing: 10) {
-                Button(action: timer.toggle) {
-                    Label(timer.isRunning ? "Duraklat" : "Başlat", systemImage: timer.isRunning ? "pause.fill" : "play.fill")
-                        .font(.system(size: 11, weight: .bold))
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 11)
-                        .background(timerColor, in: Capsule())
-                        .foregroundStyle(.black)
+                Button {
+                    clockTimer.toggle(mode: timer.mode, duration: timer.duration)
+                } label: {
+                    HStack(spacing: 6) {
+                        if clockTimer.isPerformingAction {
+                            ProgressView().controlSize(.small)
+                        } else {
+                            Image(systemName: primaryIcon)
+                        }
+                        Text(primaryTitle)
+                    }
+                    .font(.system(size: 11, weight: .bold))
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 11)
+                    .background(timerColor, in: Capsule())
+                    .foregroundStyle(.black)
                 }
                 .buttonStyle(ScaleButtonStyle())
+                .disabled(clockTimer.isPerformingAction)
 
-                Button(action: timer.reset) {
+                Button {
+                    clockTimer.reset(mode: timer.mode)
+                } label: {
                     Label("Sıfırla", systemImage: "arrow.counterclockwise")
                         .font(.system(size: 10, weight: .bold))
                         .frame(maxWidth: .infinity)
@@ -98,26 +131,40 @@ struct TimerSection: View {
                         .background(.white.opacity(0.09), in: Capsule())
                 }
                 .buttonStyle(ScaleButtonStyle())
-
-                if timer.mode != .stopwatch {
-                    Button { timer.add(minutes: 5) } label: {
-                        Label("+5 dakika", systemImage: "plus")
-                            .font(.system(size: 9, weight: .bold))
-                            .foregroundStyle(.white.opacity(0.55))
-                    }
-                    .buttonStyle(.plain)
-                }
+                .disabled(!clockTimer.isActive(timer.mode) || clockTimer.isPerformingAction)
             }
             .frame(width: 112)
         }
     }
 
-    private var timerColor: Color {
-        switch timer.mode {
-        case .countdown: IslandPalette.orange
-        case .stopwatch: IslandPalette.cyan
-        case .focus: IslandPalette.purple
+    private var activityDetail: String {
+        guard clockTimer.isActive(timer.mode) else {
+            return timer.mode == .stopwatch ? "Saat kronometresi hazır" : "Seçilen süre: \(timer.duration.islandClock)"
         }
+        let status = clockTimer.state(for: timer.mode) == .running ? "Çalışıyor" : "Duraklatıldı"
+        if timer.mode == .countdown, let current = clockTimer.current {
+            return "\(current.title) · \(status)"
+        }
+        return "Saat Kronometresi · \(status)"
+    }
+
+    private var primaryTitle: String {
+        switch clockTimer.state(for: timer.mode) {
+        case .running: "Duraklat"
+        case .paused: "Devam Et"
+        case .stopped: "Başlat"
+        }
+    }
+
+    private var primaryIcon: String {
+        switch clockTimer.state(for: timer.mode) {
+        case .running: "pause.fill"
+        case .paused, .stopped: "play.fill"
+        }
+    }
+
+    private var timerColor: Color {
+        timer.mode == .stopwatch ? IslandPalette.cyan : IslandPalette.orange
     }
 }
 

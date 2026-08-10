@@ -8,7 +8,6 @@ struct PreferencesView: View {
     @AppStorage("showVolumeHUD") private var showVolumeHUD = true
     @AppStorage("showBrightnessHUD") private var showBrightnessHUD = true
     @AppStorage("showNotificationHUD") private var showNotificationHUD = true
-    @AppStorage("syncClockTimers") private var syncClockTimers = true
     @State private var loginError: String?
 
     var body: some View {
@@ -21,7 +20,6 @@ struct PreferencesView: View {
                     .onChange(of: showNotificationHUD) { _, enabled in
                         island.notifications.featurePreferenceDidChange(enabled: enabled)
                     }
-                Toggle("macOS Saat timer'larını canlı göster", isOn: $syncClockTimers)
                 Toggle("Oturum açıldığında çalıştır", isOn: $launchAtLogin)
                     .onChange(of: launchAtLogin) { _, enabled in
                         updateLaunchAtLogin(enabled)
@@ -32,7 +30,8 @@ struct PreferencesView: View {
 
             Section("Entegrasyonlar") {
                 Label("Music ve Spotify oynatma denetimi", systemImage: "music.note")
-                Label("macOS bildirimleri ve sayaç sesi", systemImage: "bell")
+                Label("macOS Saat sayaç ve kronometre canlı eşitlemesi", systemImage: "stopwatch")
+                Label("macOS bildirimleri", systemImage: "bell")
                 Label("Pil, ağ, çıkış sesi ve ekran parlaklığı", systemImage: "macbook")
                 Label("Wi‑Fi ağları ve Bluetooth aygıt denetimi", systemImage: "wifi")
                 Text("İlk medya komutunda macOS, Music veya Spotify erişimi için izin isteyebilir.")
