@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleDevelopmentRegion</key>
+    <string>tr</string>
+    <key>CFBundleDisplayName</key>
+    <string>Dynamic Island</string>
+    <key>CFBundleExecutable</key>
+    <string>DynamicIslandMac</string>
+    <key>CFBundleIdentifier</key>
+    <string>dev.c0denail.DynamicIslandMac</string>
+    <key>CFBundleInfoDictionaryVersion</key>
+    <string>6.0</string>
+    <key>CFBundleName</key>
+    <string>Dynamic Island</string>
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
+    <key>CFBundleShortVersionString</key>
+    <string>1.0.0</string>
+    <key>CFBundleVersion</key>
+    <string>1</string>
+    <key>LSMinimumSystemVersion</key>
+    <string>14.0</string>
+    <key>LSUIElement</key>
+    <true/>
+    <key>NSAppleEventsUsageDescription</key>
+    <string>Music ve Spotify oynatmayı denetlemek için otomasyon erişimi gerekir.</string>
+    <key>NSBluetoothAlwaysUsageDescription</key>
+    <string>Dynamic Island, eşleşmiş Bluetooth aygıtlarını göstermek ve bağlantılarını yönetmek için Bluetooth erişimi kullanır.</string>
+    <key>NSLocationUsageDescription</key>
+    <string>Dynamic Island, yalnızca yakındaki Wi‑Fi ağlarının adlarını göstermek ve seçtiğiniz ağa bağlanmak için konum izni kullanır.</string>
+    <key>NSHighResolutionCapable</key>
+    <true/>
+    <key>NSHumanReadableCopyright</key>
+    <string>© 2026 Dynamic Island for macOS</string>
+    <key>NSPrincipalClass</key>
+    <string>NSApplication</string>
+</dict>
+</plist>

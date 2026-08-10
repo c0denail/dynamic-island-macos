@@ -1,0 +1,21 @@
+DYNAMIC ISLAND — KURULUM
+
+1. “Dynamic Island.app” uygulamasını “Applications” kısayolunun üzerine sürükleyin.
+2. Uygulamalar klasöründen Dynamic Island’ı açın.
+3. macOS geliştiriciyi doğrulayamazsa:
+   • Sistem Ayarları → Gizlilik ve Güvenlik bölümünü açın.
+   • Aşağı kaydırıp Dynamic Island için “Yine de Aç” düğmesine basın.
+   • Açılan son onay penceresinde “Aç” seçeneğini kullanın.
+4. İlk çalıştırma ekranında Bildirim, Konum/Wi‑Fi, Bluetooth, Medya Otomasyonu ve Erişilebilirlik izinlerini tamamlayın.
+5. Düşük Güç düğmesini ilk kez kullandığınızda macOS yönetici onayını bir kez verin. Sonraki aç/kapat işlemleri yeniden parola istemez.
+
+Uygulama macOS 14 Sonoma veya daha yeni bir sürüm gerektirir.
+
+KALDIRMA
+
+Dynamic Island’dan çıkın ve /Applications/Dynamic Island.app dosyasını Çöp Sepeti’ne taşıyın.
+
+Düşük Güç yardımcısını da tamamen kaldırmak için Terminal’de sırasıyla şunları çalıştırın:
+sudo launchctl bootout system/dev.c0denail.DynamicIslandMac.PowerHelper
+sudo rm /Library/LaunchDaemons/dev.c0denail.DynamicIslandMac.PowerHelper.plist
+sudo rm /Library/PrivilegedHelperTools/dev.c0denail.DynamicIslandMac.PowerHelper
