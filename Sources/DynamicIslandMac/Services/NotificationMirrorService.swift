@@ -26,9 +26,9 @@ final class NotificationMirrorService: ObservableObject {
 
         if UserDefaults.standard.bool(forKey: "permissionOnboardingCompleted"),
            isFeatureEnabled,
-           !isAccessibilityTrusted,
-           !UserDefaults.standard.bool(forKey: "didRequestNotificationAccessibility") {
-            UserDefaults.standard.set(true, forKey: "didRequestNotificationAccessibility")
+           !isAccessibilityTrusted {
+            // Ask once per launch instead of suppressing the prompt forever.
+            // A newly signed app build can require Accessibility approval again.
             requestAccessibilityAccess()
         }
 

@@ -13,6 +13,21 @@ arm_scratch="$universal_dir/swift-arm64"
 x86_scratch="$universal_dir/swift-x86_64"
 mini_arm_dir="build/mediaremote-mini-arm64"
 mini_x86_dir="build/mediaremote-mini-x86_64"
+preferred_development_identity="AE775513E31FC2599BBFB8D7747E690DE558FC90"
+
+if [[ -n "${CODE_SIGN_IDENTITY:-}" ]]; then
+    code_sign_identity="$CODE_SIGN_IDENTITY"
+elif security find-identity -v -p codesigning | grep -F "$preferred_development_identity" >/dev/null; then
+    code_sign_identity="$preferred_development_identity"
+else
+    code_sign_identity="$(security find-identity -v -p codesigning | awk '/Apple Development:/ && !found { print $2; found=1 }')"
+    code_sign_identity="${code_sign_identity:--}"
+fi
+
+code_sign_arguments=(--force --sign "$code_sign_identity")
+if [[ "$code_sign_identity" != "-" ]]; then
+    code_sign_arguments+=(--timestamp)
+fi
 
 cd "$project_dir"
 swift build -c "$configuration" --triple arm64-apple-macosx14.0 --scratch-path "$arm_scratch"
@@ -69,7 +84,8 @@ chmod +x "$app_dir/Contents/MacOS/DynamicIslandMac"
 chmod +x "$app_dir/Contents/Helpers/NowPlayingControl"
 chmod +x "$app_dir/Contents/Library/PrivilegedHelperTools/dev.c0denail.DynamicIslandMac.PowerHelper"
 
-codesign --force --sign - "$app_dir/Contents/Library/PrivilegedHelperTools/dev.c0denail.DynamicIslandMac.PowerHelper"
-codesign --force --deep --sign - "$app_dir"
+codesign "${code_sign_arguments[@]}" "$app_dir/Contents/Library/PrivilegedHelperTools/dev.c0denail.DynamicIslandMac.PowerHelper"
+codesign --deep "${code_sign_arguments[@]}" "$app_dir"
 
+echo "Code signing identity: $code_sign_identity"
 echo "$app_dir"

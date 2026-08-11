@@ -9,6 +9,20 @@ struct TimerSection: View {
             synchronizationHeader
             timerControls
 
+            if !clockTimer.isAccessibilityTrusted {
+                HStack(spacing: 10) {
+                    Image(systemName: "figure.wave.circle.fill")
+                    Text("Saat denetimi için Dynamic Island’ın Erişilebilirlik iznini yenileyin.")
+                        .font(.system(size: 9, weight: .semibold))
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    Button("İzni Yenile") { clockTimer.requestAccessibilityAccess() }
+                        .font(.system(size: 9, weight: .bold))
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
+                }
+                .foregroundStyle(.orange)
+            }
+
             if let error = clockTimer.lastError {
                 Text(error)
                     .font(.system(size: 8.5, weight: .semibold))

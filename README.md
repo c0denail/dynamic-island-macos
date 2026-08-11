@@ -51,7 +51,7 @@ Başka bir Mac'e kopyalanabilen DMG paketini oluşturmak için:
 make dmg
 ```
 
-Paket `dist/Dynamic-Island-for-macOS-1.0.0.dmg` konumuna yazılır. DMG içindeki uygulama **Applications** kısayoluna sürüklenir. Paket Developer ID ile notarize edilmediğinden başka bir Mac'te ilk açılışta **Sistem Ayarları → Gizlilik ve Güvenlik → Yine de Aç** adımı gerekebilir.
+Paket `dist/Dynamic-Island-for-macOS-1.0.1.dmg` konumuna yazılır. DMG içindeki uygulama **Applications** kısayoluna sürüklenir. Paket Developer ID ile notarize edilmediğinden başka bir Mac'te ilk açılışta **Sistem Ayarları → Gizlilik ve Güvenlik → Yine de Aç** adımı gerekebilir. Paketleme betiği `CODE_SIGN_IDENTITY` verilmişse onu, aksi halde bu Mac'teki Apple Development kimliğini kullanır; kimlik bulunamazsa ad-hoc imzaya geri döner. Kararlı bir imza, Erişilebilirlik izninin güncellemelerde aynı uygulamayla eşleşmesini sağlar.
 
 Temiz bir kurulumun ilk çalıştırmasında Dynamic Island; Bildirim, Konum/Wi‑Fi, Bluetooth, Medya Otomasyonu ve Erişilebilirlik izinlerini sırayla isteyen kurulum penceresini gösterir.
 
@@ -59,13 +59,13 @@ Release derlemesi, sistem genelindeki Now Playing verisini okuyabilmek için sab
 
 İlk Apple Events medya komutunda macOS, Dynamic Island'ın Music veya Spotify'ı denetlemesi için izin isteyebilir. İzin daha sonra **Sistem Ayarları → Gizlilik ve Güvenlik → Otomasyon** bölümünden değiştirilebilir.
 
-Diğer uygulamaların bildirim içeriği macOS'un normal bildirim API'sinde paylaşılmadığı için Dynamic Island ilk çalıştırmada **Erişilebilirlik** izni ister. İzin **Sistem Ayarları → Gizlilik ve Güvenlik → Erişilebilirlik** bölümünden verilebilir; bildirim metni yalnızca cihaz üzerinde işlenir. Ayarlar'daki **Bildirimi adada önizle** düğmesi görünümü izin vermeden test eder. Sistem tarafından banner olarak gösterilmeyen veya Odak tarafından bastırılan bildirimler aynalanamaz; yerel macOS banner'ı ve Bildirim Merkezi geçmişi silinmez.
+Diğer uygulamaların bildirim içeriği macOS'un normal bildirim API'sinde paylaşılmadığı için Dynamic Island ilk çalıştırmada **Erişilebilirlik** izni ister. İzin **Sistem Ayarları → Gizlilik ve Güvenlik → Erişilebilirlik** bölümünden verilebilir; bildirim metni yalnızca cihaz üzerinde işlenir. Önceki ad-hoc imzalı bir sürümden geçerken anahtar açık görünmesine rağmen izin eşleşmiyorsa eski Dynamic Island satırını `−` ile kaldırıp `/Applications/Dynamic Island.app` dosyasını `+` ile yeniden ekleyin ve uygulamayı kapatıp açın. Ayarlar'daki **Bildirimi adada önizle** düğmesi görünümü izin vermeden test eder. Sistem tarafından banner olarak gösterilmeyen veya Odak tarafından bastırılan bildirimler aynalanamaz; yerel macOS banner'ı ve Bildirim Merkezi geçmişi silinmez.
 
 Düşük Güç Modu ilk kez değiştirildiğinde macOS standart yönetici onayını bir kez gösterir ve yalnızca bu ayarı değiştirebilen dar yetkili yardımcıyı `/Library/PrivilegedHelperTools` konumuna kurar. Sonraki aç/kapat işlemleri yeniden parola istemeden çalışır. Yardımcı kaldırılırsa veya macOS tarafından devre dışı bırakılırsa ilk kurulum onayı yeniden gerekir; onay iptal edilirse mevcut güç ayarı değiştirilmez.
 
 Uygulamayı kaldırırken güç yardımcısını da silmek isterseniz önce `sudo launchctl bootout system/dev.c0denail.DynamicIslandMac.PowerHelper`, ardından ilgili dosyalar için `sudo rm /Library/LaunchDaemons/dev.c0denail.DynamicIslandMac.PowerHelper.plist /Library/PrivilegedHelperTools/dev.c0denail.DynamicIslandMac.PowerHelper` komutlarını çalıştırın.
 
-Apple'ın Clock uygulaması timer/kronometre yönetimi için herkese açık bir macOS API'si veya AppleScript sözlüğü sunmadığından uygulama, mevcut Erişilebilirlik izniyle Clock’un kararlı kontrol kimliklerini kullanır. Clock durum dosyaları yalnızca okunur; veritabanına veya tercih dosyasına yazılmaz. Arayüz kimlikleri gelecekteki büyük bir macOS güncellemesinde değişirse köprünün uyarlanması gerekebilir.
+Apple'ın Clock uygulaması timer/kronometre yönetimi için herkese açık bir macOS API'si veya AppleScript sözlüğü sunmadığından uygulama, mevcut Erişilebilirlik izniyle Clock’un kararlı kontrol kimliklerini kullanır. Her komutta Clock penceresi öne getirilmeden erişilebilirlik için hazırlanır, hedef sekme yeniden seçilir ve gerçek Clock durumu değişene kadar sonuç doğrulanır. Clock durum dosyaları yalnızca okunur; veritabanına veya tercih dosyasına yazılmaz. Arayüz kimlikleri gelecekteki büyük bir macOS güncellemesinde değişirse köprünün uyarlanması gerekebilir.
 
 Oturum açılışında çalıştır seçeneği için uygulamayı önce `dist` klasöründen `/Applications` klasörüne taşımanız önerilir.
 

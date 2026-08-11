@@ -10,14 +10,37 @@ struct ClockActivityReadout: Equatable, Sendable {
 
 enum ClockActivitySnapshotReader {
     static let integrationTitle = "Dynamic Island"
+    private static let preferencesDomain = "com.apple.mobiletimerd" as CFString
 
     static func read(now: Date = Date()) -> ClockActivityReadout {
+        let liveTimerValue = CFPreferencesCopyAppValue("MTTimers" as CFString, preferencesDomain)
+        let liveStopwatchValue = CFPreferencesCopyAppValue("MTStopwatches" as CFString, preferencesDomain)
+        if liveTimerValue != nil || liveStopwatchValue != nil {
+            var liveRoot: [String: Any] = [:]
+            if let liveTimerValue { liveRoot["MTTimers"] = liveTimerValue }
+            if let liveStopwatchValue { liveRoot["MTStopwatches"] = liveStopwatchValue }
+            let live = decode(root: liveRoot, now: now)
+
+            // A present CFPreferences container with no active entry means the
+            // activity was stopped. Never revive it from a stale disk/SQLite
+            // snapshot; use those sources only when the live key is unavailable.
+            guard liveTimerValue == nil || liveStopwatchValue == nil else { return live }
+            let disk = readDiskPreferences(now: now)
+            let timer = liveTimerValue != nil ? live.timer : (disk.timer ?? readLegacyTimer(now: now))
+            let stopwatch = liveStopwatchValue != nil ? live.stopwatch : disk.stopwatch
+            return ClockActivityReadout(timer: timer, stopwatch: stopwatch)
+        }
+
+        let disk = readDiskPreferences(now: now)
+        guard disk.timer == nil else { return disk }
+        return ClockActivityReadout(timer: readLegacyTimer(now: now), stopwatch: disk.stopwatch)
+    }
+
+    private static func readDiskPreferences(now: Date) -> ClockActivityReadout {
         let url = FileManager.default.homeDirectoryForCurrentUser
             .appendingPathComponent("Library/Preferences/com.apple.mobiletimerd.plist")
-        let decoded = (try? Data(contentsOf: url)).map { decode(data: $0, now: now) }
+        return (try? Data(contentsOf: url)).map { decode(data: $0, now: now) }
             ?? ClockActivityReadout(timer: nil, stopwatch: nil)
-        guard decoded.timer == nil else { return decoded }
-        return ClockActivityReadout(timer: readLegacyTimer(now: now), stopwatch: decoded.stopwatch)
     }
 
     static func decode(data: Data, now: Date = Date()) -> ClockActivityReadout {
@@ -25,6 +48,10 @@ enum ClockActivitySnapshotReader {
             return ClockActivityReadout(timer: nil, stopwatch: nil)
         }
 
+        return decode(root: root, now: now)
+    }
+
+    private static func decode(root: [String: Any], now: Date) -> ClockActivityReadout {
         let timer = decodeTimers(root["MTTimers"], now: now)
         let stopwatch = decodeStopwatch(root["MTStopwatches"], now: now)
         return ClockActivityReadout(timer: timer, stopwatch: stopwatch)
@@ -53,9 +80,16 @@ enum ClockActivitySnapshotReader {
             let fireTime = raw["MTTimerFireTime"] as? [String: Any]
             let fireDate = ((fireTime?["$MTTimerDate"] as? [String: Any])?["MTTimerTimeDate"] as? Date)
             let storedRemaining = number((fireTime?["$MTTimerTimeInterval"] as? [String: Any])?["MTTimerTimeInterval"])
-            let remaining = fireDate.map { max(0, $0.timeIntervalSince(now)) }
-                ?? storedRemaining
-                ?? duration
+            let remaining: TimeInterval
+            if state == .paused {
+                remaining = storedRemaining
+                    ?? fireDate.map { max(0, $0.timeIntervalSince(now)) }
+                    ?? duration
+            } else {
+                remaining = fireDate.map { max(0, $0.timeIntervalSince(now)) }
+                    ?? storedRemaining
+                    ?? duration
+            }
             let rawTitle = (raw["MTTimerTitle"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
             let title = rawTitle.isEmpty || rawTitle == "CURRENT_TIMER" ? "macOS Saat Sayacı" : rawTitle
 
@@ -170,13 +204,13 @@ enum ClockActivitySnapshotReader {
 
 private enum ClockAutomationAction: Sendable {
     case startTimer(TimeInterval)
-    case pauseTimer
-    case resumeTimer
-    case cancelTimer
+    case pauseTimer(identifier: String, title: String)
+    case resumeTimer(identifier: String, title: String)
+    case cancelTimer(identifier: String, title: String)
     case startStopwatch
-    case pauseStopwatch
-    case resumeStopwatch
-    case resetStopwatch(wasRunning: Bool)
+    case pauseStopwatch(identifier: String)
+    case resumeStopwatch(identifier: String)
+    case resetStopwatch(identifier: String)
 }
 
 private enum ClockAutomationResult: Sendable {
@@ -201,6 +235,41 @@ private enum ClockAutomationBridge {
         }
 
         let root = AXUIElementCreateApplication(application.processIdentifier)
+        let wasHidden = booleanAttribute(root, kAXHiddenAttribute) ?? application.isHidden
+        // Clock is launched with `open -j`, and macOS can report AXPress success
+        // without dispatching the control action while its window is hidden.
+        // Temporarily exposing it to Accessibility (without activating it) makes
+        // the controls responsive. Restore the previous hidden state afterwards.
+        _ = setHidden(false, on: root)
+        Thread.sleep(forTimeInterval: 0.18)
+        defer {
+            if wasHidden {
+                _ = setHidden(true, on: root)
+                _ = waitUntil(timeout: 1.2, interval: 0.05) {
+                    booleanAttribute(root, kAXHiddenAttribute) == true
+                }
+            }
+        }
+
+        var lastFailure = "Saat komutu çalıştırılamadı."
+        for attempt in 0..<2 {
+            if attempt > 0, expectedStateReached(for: action) { return .success }
+
+            let result = performOnce(action, in: root)
+            if case .failure(let message) = result { lastFailure = message }
+            if case .success = result, waitForExpectedState(after: action) { return .success }
+
+            // Re-prime the hidden/background Clock window and acquire fresh AX
+            // elements before the single retry.
+            _ = setHidden(false, on: root)
+            Thread.sleep(forTimeInterval: 0.22)
+        }
+
+        if expectedStateReached(for: action) { return .success }
+        return .failure("\(lastFailure) macOS Saat durumu değişmedi; işlemi yeniden deneyin.")
+    }
+
+    private static func performOnce(_ action: ClockAutomationAction, in root: AXUIElement) -> ClockAutomationResult {
         switch action {
         case .startTimer(let duration):
             guard select(.timer, in: root), prepareTimerEditor(in: root) else {
@@ -208,38 +277,77 @@ private enum ClockAutomationBridge {
             }
             return configureAndStartTimer(duration: duration, in: root)
 
-        case .pauseTimer, .resumeTimer:
+        case let .pauseTimer(_, title), let .resumeTimer(_, title):
             guard select(.timer, in: root),
-                  let button = timerButton(identifier: "PauseResumeButton", in: root)
+                  let button = waitForElement({ timerButton(identifier: "PauseResumeButton", preferredTitle: title, in: root) })
             else { return .failure("Saat sayacının duraklat/devam düğmesi bulunamadı.") }
             return press(button)
 
-        case .cancelTimer:
+        case let .cancelTimer(_, title):
             guard select(.timer, in: root),
-                  let button = timerButton(identifier: "CancelButton", in: root)
+                  let button = waitForElement({ timerButton(identifier: "CancelButton", preferredTitle: title, in: root) })
             else { return .failure("Saat sayacının iptal düğmesi bulunamadı.") }
             return press(button)
 
         case .startStopwatch, .pauseStopwatch, .resumeStopwatch:
             guard select(.stopwatch, in: root),
-                  let button = firstElement(in: root, identifier: "StartStopButton")
+                  let button = waitForElement({ firstElement(in: root, identifier: "StartStopButton") })
             else { return .failure("Saat kronometresinin başlat/durdur düğmesi bulunamadı.") }
             return press(button)
 
-        case .resetStopwatch(let wasRunning):
+        case .resetStopwatch:
             guard select(.stopwatch, in: root) else {
                 return .failure("Saat kronometresi açılamadı.")
             }
-            if wasRunning, let stop = firstElement(in: root, identifier: "StartStopButton") {
+            if ClockActivitySnapshotReader.read().stopwatch?.state == .running,
+               let stop = waitForElement({ firstElement(in: root, identifier: "StartStopButton") }) {
                 guard case .success = press(stop) else {
                     return .failure("Saat kronometresi durdurulamadı.")
                 }
-                Thread.sleep(forTimeInterval: 0.25)
+                guard waitForStopwatchState(.paused) else {
+                    return .failure("Saat kronometresinin durması doğrulanamadı.")
+                }
+                guard select(.stopwatch, in: root) else {
+                    return .failure("Saat kronometresi sıfırlamaya hazırlanamadı.")
+                }
             }
-            guard let reset = firstElement(in: root, identifier: "LapResetButton") else {
+            guard let reset = waitForElement({ firstElement(in: root, identifier: "LapResetButton") }) else {
                 return .failure("Saat kronometresinin sıfırla düğmesi bulunamadı.")
             }
             return press(reset)
+        }
+    }
+
+    private static func expectedStateReached(for action: ClockAutomationAction) -> Bool {
+        let readout = ClockActivitySnapshotReader.read()
+        switch action {
+        case .startTimer:
+            return readout.timer?.state == .running
+                && readout.timer?.title == ClockActivitySnapshotReader.integrationTitle
+        case let .pauseTimer(identifier, _):
+            return readout.timer?.identifier == identifier && readout.timer?.state == .paused
+        case let .resumeTimer(identifier, _):
+            return readout.timer?.identifier == identifier && readout.timer?.state == .running
+        case let .cancelTimer(identifier, _):
+            return readout.timer?.identifier != identifier
+        case .startStopwatch:
+            return readout.stopwatch?.state == .running
+        case let .pauseStopwatch(identifier):
+            return readout.stopwatch?.identifier == identifier && readout.stopwatch?.state == .paused
+        case let .resumeStopwatch(identifier):
+            return readout.stopwatch?.identifier == identifier && readout.stopwatch?.state == .running
+        case let .resetStopwatch(identifier):
+            return readout.stopwatch?.identifier != identifier
+        }
+    }
+
+    private static func waitForExpectedState(after action: ClockAutomationAction, timeout: TimeInterval = 2.4) -> Bool {
+        waitUntil(timeout: timeout) { expectedStateReached(for: action) }
+    }
+
+    private static func waitForStopwatchState(_ state: ClockActivityState, timeout: TimeInterval = 2.4) -> Bool {
+        waitUntil(timeout: timeout) {
+            ClockActivitySnapshotReader.read().stopwatch?.state == state
         }
     }
 
@@ -269,11 +377,31 @@ private enum ClockAutomationBridge {
 
     private static func select(_ tab: ClockTab, in root: AXUIElement) -> Bool {
         let radioButtons = elements(in: root, role: kAXRadioButtonRole)
-        guard radioButtons.indices.contains(tab.rawValue) else { return false }
-        if numberAttribute(radioButtons[tab.rawValue], kAXValueAttribute) != 1 {
-            guard AXUIElementPerformAction(radioButtons[tab.rawValue], cf(kAXPressAction)) == .success else { return false }
-            Thread.sleep(forTimeInterval: 0.45)
+        let semanticNames: [String]
+        switch tab {
+        case .stopwatch: semanticNames = ["kronometre", "stopwatch"]
+        case .timer: semanticNames = ["sayaçlar", "sayaç", "timers", "timer"]
         }
+
+        let semanticMatch = radioButtons.first { button in
+            let label = [
+                stringAttribute(button, kAXDescriptionAttribute),
+                stringAttribute(button, kAXTitleAttribute),
+                stringAttribute(button, kAXHelpAttribute)
+            ].joined(separator: " ").lowercased()
+            return semanticNames.contains { label == $0 || label.contains($0) }
+        }
+        let indexedMatch = radioButtons.indices.contains(tab.rawValue) ? radioButtons[tab.rawValue] : nil
+        guard let button = semanticMatch ?? indexedMatch,
+              performAXPress(button) == .success
+        else { return false }
+
+        // Press even when AXValue was already selected. Clock's hidden window
+        // otherwise accepts later AXPress calls without applying their action.
+        guard waitUntil(timeout: 1.2, interval: 0.06, condition: {
+            numberAttribute(button, kAXValueAttribute) == 1
+        }) else { return false }
+        Thread.sleep(forTimeInterval: 0.32)
         return true
     }
 
@@ -331,18 +459,70 @@ private enum ClockAutomationBridge {
         return leadingInteger(stringAttribute(slider, kAXValueAttribute)) == target
     }
 
-    private static func timerButton(identifier: String, in root: AXUIElement) -> AXUIElement? {
+    private static func timerButton(identifier: String, preferredTitle: String, in root: AXUIElement) -> AXUIElement? {
         let groups = elements(in: root, role: kAXGroupRole)
-        for group in groups where subtreeContains(group, text: ClockActivitySnapshotReader.integrationTitle) {
-            if let button = firstElement(in: group, identifier: identifier) { return button }
+        let titles = [preferredTitle, ClockActivitySnapshotReader.integrationTitle]
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty && $0 != "macOS Saat Sayacı" }
+
+        for title in titles {
+            let matchingCards = groups.compactMap { group -> (AXUIElement, Int)? in
+                guard subtreeContains(group, text: title),
+                      let button = firstElement(in: group, identifier: identifier)
+                else { return nil }
+                return (button, descendantCount(of: group))
+            }
+            if let best = matchingCards.min(by: { $0.1 < $1.1 }) { return best.0 }
         }
         return firstElement(in: root, identifier: identifier)
     }
 
     private static func press(_ element: AXUIElement) -> ClockAutomationResult {
-        AXUIElementPerformAction(element, cf(kAXPressAction)) == .success
+        let error = performAXPress(element)
+        return error == .success
             ? .success
-            : .failure("Saat denetimi çalıştırılamadı.")
+            : .failure("Saat denetimi çalıştırılamadı (AX hata \(error.rawValue)).")
+    }
+
+    private static func performAXPress(_ element: AXUIElement) -> AXError {
+        var result: AXError = .cannotComplete
+        for _ in 0..<3 {
+            result = AXUIElementPerformAction(element, cf(kAXPressAction))
+            if result == .success { return result }
+            Thread.sleep(forTimeInterval: 0.08)
+        }
+        return result
+    }
+
+    private static func waitForElement(
+        _ finder: () -> AXUIElement?,
+        timeout: TimeInterval = 1.8
+    ) -> AXUIElement? {
+        let deadline = Date().addingTimeInterval(timeout)
+        repeat {
+            if let element = finder(), booleanAttribute(element, kAXEnabledAttribute) != false {
+                return element
+            }
+            Thread.sleep(forTimeInterval: 0.06)
+        } while Date() < deadline
+        return nil
+    }
+
+    private static func waitUntil(
+        timeout: TimeInterval,
+        interval: TimeInterval = 0.08,
+        condition: () -> Bool
+    ) -> Bool {
+        let deadline = Date().addingTimeInterval(timeout)
+        repeat {
+            if condition() { return true }
+            Thread.sleep(forTimeInterval: interval)
+        } while Date() < deadline
+        return condition()
+    }
+
+    private static func setHidden(_ hidden: Bool, on root: AXUIElement) -> Bool {
+        AXUIElementSetAttributeValue(root, cf(kAXHiddenAttribute), NSNumber(value: hidden)) == .success
     }
 
     private static func subtreeContains(_ root: AXUIElement, text: String) -> Bool {
@@ -350,6 +530,11 @@ private enum ClockAutomationBridge {
             if stringAttribute(root, attribute).localizedCaseInsensitiveContains(text) { return true }
         }
         return children(of: root).contains { subtreeContains($0, text: text) }
+    }
+
+    private static func descendantCount(of root: AXUIElement) -> Int {
+        let descendants = children(of: root)
+        return descendants.reduce(descendants.count) { $0 + descendantCount(of: $1) }
     }
 
     private static func firstElement(in root: AXUIElement, identifier: String) -> AXUIElement? {
@@ -399,6 +584,12 @@ private enum ClockAutomationBridge {
         return (value as? NSNumber)?.intValue
     }
 
+    private static func booleanAttribute(_ element: AXUIElement, _ attribute: String) -> Bool? {
+        var value: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(element, cf(attribute), &value) == .success else { return nil }
+        return (value as? NSNumber)?.boolValue
+    }
+
     private static func leadingInteger(_ value: String) -> Int {
         Int(value.split(whereSeparator: { !$0.isNumber }).first ?? "0") ?? 0
     }
@@ -415,6 +606,7 @@ final class ClockTimerService: ObservableObject {
     @Published private(set) var activeMode: TimerMode?
     @Published private(set) var hasActiveActivity = false
     @Published private(set) var isPerformingAction = false
+    @Published private(set) var isAccessibilityTrusted = AXIsProcessTrusted()
     @Published var lastError: String?
 
     private var poller: AnyCancellable?
@@ -433,18 +625,27 @@ final class ClockTimerService: ObservableObject {
     }
 
     func toggle(mode: TimerMode, duration: TimeInterval) {
+        guard ensureAccessibilityAccess() else { return }
         let action: ClockAutomationAction
         switch mode {
         case .countdown:
             switch current?.state {
-            case .running: action = .pauseTimer
-            case .paused: action = .resumeTimer
+            case .running:
+                guard let current else { return }
+                action = .pauseTimer(identifier: current.identifier, title: current.title)
+            case .paused:
+                guard let current else { return }
+                action = .resumeTimer(identifier: current.identifier, title: current.title)
             case .stopped, nil: action = .startTimer(duration)
             }
         case .stopwatch:
             switch stopwatch?.state {
-            case .running: action = .pauseStopwatch
-            case .paused: action = .resumeStopwatch
+            case .running:
+                guard let stopwatch else { return }
+                action = .pauseStopwatch(identifier: stopwatch.identifier)
+            case .paused:
+                guard let stopwatch else { return }
+                action = .resumeStopwatch(identifier: stopwatch.identifier)
             case .stopped, nil: action = .startStopwatch
             }
         }
@@ -452,14 +653,27 @@ final class ClockTimerService: ObservableObject {
     }
 
     func reset(mode: TimerMode) {
+        guard ensureAccessibilityAccess() else { return }
         switch mode {
         case .countdown:
-            guard current != nil else { return }
-            run(.cancelTimer, preferredMode: mode)
+            guard let current else { return }
+            run(.cancelTimer(identifier: current.identifier, title: current.title), preferredMode: mode)
         case .stopwatch:
             guard let stopwatch else { return }
-            run(.resetStopwatch(wasRunning: stopwatch.state == .running), preferredMode: mode)
+            run(.resetStopwatch(identifier: stopwatch.identifier), preferredMode: mode)
         }
+    }
+
+    func requestAccessibilityAccess() {
+        let promptKey = kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String
+        let options = [promptKey: true] as CFDictionary
+        isAccessibilityTrusted = AXIsProcessTrustedWithOptions(options)
+        if !isAccessibilityTrusted { openAccessibilitySettings() }
+    }
+
+    func openAccessibilitySettings() {
+        guard let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") else { return }
+        NSWorkspace.shared.open(url)
     }
 
     func openClock(mode: TimerMode) {
@@ -504,6 +718,8 @@ final class ClockTimerService: ObservableObject {
     }
 
     private func refresh() {
+        let trusted = AXIsProcessTrusted()
+        if trusted != isAccessibilityTrusted { isAccessibilityTrusted = trusted }
         guard !refreshInFlight else { return }
         refreshInFlight = true
         Task { [weak self] in
@@ -555,5 +771,15 @@ final class ClockTimerService: ObservableObject {
                 self?.refresh()
             }
         }
+    }
+
+    private func ensureAccessibilityAccess() -> Bool {
+        isAccessibilityTrusted = AXIsProcessTrusted()
+        guard isAccessibilityTrusted else {
+            lastError = "macOS Saat denetimi için Erişilebilirlik iznini yenileyin ve Dynamic Island’ı yeniden açın."
+            requestAccessibilityAccess()
+            return false
+        }
+        return true
     }
 }

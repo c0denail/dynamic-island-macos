@@ -88,6 +88,30 @@ final class TimeFormattingTests: XCTestCase {
         XCTAssertEqual(readout.timer?.remaining, 321)
     }
 
+    func testPausedClockTimerPrefersFrozenIntervalOverFireDate() throws {
+        let now = Date()
+        let root: [String: Any] = [
+            "MTTimers": [
+                "MTTimers": [[
+                    "$MTTimer": [
+                        "MTTimerID": "paused-with-fire-date",
+                        "MTTimerDuration": 900,
+                        "MTTimerState": 2,
+                        "MTTimerFireTime": [
+                            "$MTTimerDate": ["MTTimerTimeDate": now.addingTimeInterval(600)],
+                            "$MTTimerTimeInterval": ["MTTimerTimeInterval": 321]
+                        ]
+                    ]
+                ]]
+            ]
+        ]
+
+        let readout = ClockActivitySnapshotReader.decode(data: try propertyListData(root), now: now)
+
+        XCTAssertEqual(readout.timer?.state, .paused)
+        XCTAssertEqual(readout.timer?.remaining, 321)
+    }
+
     func testClockReaderDecodesRunningStopwatch() throws {
         let now = Date()
         let root: [String: Any] = [
