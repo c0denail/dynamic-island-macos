@@ -7,7 +7,8 @@ MacBook çentiğiyle fiziksel olarak hizalanan, SwiftUI ile yazılmış yerel bi
 - Gerçek çentik geometrisini `NSScreen.auxiliaryTopLeftArea` ve `auxiliaryTopRightArea` ile algılar; boşta tamamen fiziksel çentiğin arkasına gizlenir.
 - Chrome/YouTube, Safari, Arc, Music ve Spotify dahil macOS “Şu An Çalıyor” oturumundaki medyanın gerçek kapağını, geçen/kalan süresini ve canlı ilerleme çizgisini gösterir.
 - Sistem genelinde oynat/duraklat, önceki/sonraki parça, ±15 saniye sarma ve ilerleme çizgisinden konum değiştirme denetimleri sunar.
-- Medya etkinken adaya tıklamak doğrudan Medya görünümünü, boşta tıklamak genel menüyü açar; ada dışına tıklamak geniş görünümü kapatır.
+- Medya etkinken adanın herhangi bir noktasına tıklamak doğrudan Medya görünümünü, boşta tıklamak genel menüyü açar; fiziksel çentiğin merkezi dahil tüm ada yüzeyi anında tepki verir ve ada dışına tıklamak geniş görünümü kapatır.
+- Açılma, küçülme ve etkinlik geçişleri sabit 60 FPS zaman tabanlı animasyonla çalışır; medya ve bildirim sorguları geçiş sırasında ana iş parçacığını bloke etmez.
 - macOS bildirim banner'larını uygulama simgesi, başlık ve içerikle Dynamic Island'da gösterir; art arda gelen bildirimleri sıraya alır ve adaya tıklanınca gerçek bildirim eylemini veya kaynak uygulamayı açar.
 - Geri sayım ve kronometreyi doğrudan macOS Saat uygulamasında başlatır, duraklatır, sürdürür ve sıfırlar.
 - macOS Saat içinde veya Dynamic Island’dan başlatılan sayaç ve kronometreleri `mobiletimerd` durumundan canlı gösterir; Clock tek doğruluk kaynağıdır.
@@ -51,7 +52,7 @@ Başka bir Mac'e kopyalanabilen DMG paketini oluşturmak için:
 make dmg
 ```
 
-Paket `dist/Dynamic-Island-for-macOS-1.0.1.dmg` konumuna yazılır. DMG içindeki uygulama **Applications** kısayoluna sürüklenir. Paket Developer ID ile notarize edilmediğinden başka bir Mac'te ilk açılışta **Sistem Ayarları → Gizlilik ve Güvenlik → Yine de Aç** adımı gerekebilir. Paketleme betiği `CODE_SIGN_IDENTITY` verilmişse onu, aksi halde bu Mac'teki Apple Development kimliğini kullanır; kimlik bulunamazsa ad-hoc imzaya geri döner. Kararlı bir imza, Erişilebilirlik izninin güncellemelerde aynı uygulamayla eşleşmesini sağlar.
+Paket `dist/Dynamic-Island-for-macOS-1.0.2.dmg` konumuna yazılır. DMG içindeki uygulama **Applications** kısayoluna sürüklenir. Paket Developer ID ile notarize edilmediğinden başka bir Mac'te ilk açılışta **Sistem Ayarları → Gizlilik ve Güvenlik → Yine de Aç** adımı gerekebilir. Paketleme betiği `CODE_SIGN_IDENTITY` verilmişse onu, aksi halde bu Mac'teki Apple Development kimliğini kullanır; kimlik bulunamazsa ad-hoc imzaya geri döner. Kararlı bir imza, Erişilebilirlik izninin güncellemelerde aynı uygulamayla eşleşmesini sağlar.
 
 Temiz bir kurulumun ilk çalıştırmasında Dynamic Island; Bildirim, Konum/Wi‑Fi, Bluetooth, Medya Otomasyonu ve Erişilebilirlik izinlerini sırayla isteyen kurulum penceresini gösterir.
 

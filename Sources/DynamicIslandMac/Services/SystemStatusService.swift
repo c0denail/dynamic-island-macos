@@ -97,8 +97,9 @@ final class SystemStatusService: ObservableObject {
                 label = "Bağlı"
             }
             Task { @MainActor in
-                self?.isOnline = online
-                self?.networkLabel = label
+                guard let self else { return }
+                if self.isOnline != online { self.isOnline = online }
+                if self.networkLabel != label { self.networkLabel = label }
             }
         }
         pathMonitor.start(queue: monitorQueue)
@@ -119,10 +120,15 @@ final class SystemStatusService: ObservableObject {
 
     func refresh() {
         refreshBattery()
-        lowPowerModeEnabled = ProcessInfo.processInfo.isLowPowerModeEnabled
-        outputVolume = readOutputVolume() ?? outputVolume
-        isMuted = readMute() ?? isMuted
-        displayBrightness = brightnessBridge.read() ?? displayBrightness
+        let newLowPowerMode = ProcessInfo.processInfo.isLowPowerModeEnabled
+        if lowPowerModeEnabled != newLowPowerMode { lowPowerModeEnabled = newLowPowerMode }
+        if let newVolume = readOutputVolume(), abs(outputVolume - newVolume) > 0.000_5 {
+            outputVolume = newVolume
+        }
+        if let newMuted = readMute(), isMuted != newMuted { isMuted = newMuted }
+        if let newBrightness = brightnessBridge.read(), abs(displayBrightness - newBrightness) > 0.000_5 {
+            displayBrightness = newBrightness
+        }
     }
 
     func setLowPowerModeEnabled(_ enabled: Bool) {
@@ -480,8 +486,8 @@ final class SystemStatusService: ObservableObject {
     private func pollVolume(force: Bool = false) {
         let newVolume = readOutputVolume() ?? outputVolume
         let newMuted = readMute() ?? false
-        outputVolume = newVolume
-        isMuted = newMuted
+        if abs(outputVolume - newVolume) > 0.000_5 { outputVolume = newVolume }
+        if isMuted != newMuted { isMuted = newMuted }
         let changed = abs(newVolume - lastObservedVolume) > 0.003 || newMuted != lastObservedMute
         if changed || force {
             lastObservedVolume = newVolume
@@ -492,7 +498,7 @@ final class SystemStatusService: ObservableObject {
 
     private func pollBrightness(force: Bool = false) {
         guard let newBrightness = brightnessBridge.read() else { return }
-        displayBrightness = newBrightness
+        if abs(displayBrightness - newBrightness) > 0.000_5 { displayBrightness = newBrightness }
 
         if lastObservedBrightness < 0 {
             lastObservedBrightness = newBrightness

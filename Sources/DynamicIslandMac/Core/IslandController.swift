@@ -14,6 +14,7 @@ final class IslandController: ObservableObject {
     @Published var notchHeight: CGFloat = 34
     @Published var hasPhysicalNotch = false
     private(set) var lastExpansionDate = Date.distantPast
+    @Published private(set) var isPresentationAnimating = false
 
     let media = MediaService()
     let timer = TimerService()
@@ -32,6 +33,10 @@ final class IslandController: ObservableObject {
     private var localMonitor: Any?
 
     private init() {
+        notifications.shouldDeferPolling = { [weak self] in
+            self?.isPresentationAnimating == true
+        }
+
         clockTimer.$hasActiveActivity
             .combineLatest(media.$isPlaying)
             .sink { [weak self] timerActive, mediaPlaying in
@@ -255,6 +260,10 @@ final class IslandController: ObservableObject {
         self.notchWidth = notchWidth
         self.notchHeight = notchHeight
         hasPhysicalNotch = hasNotch
+    }
+
+    func setPresentationAnimating(_ isAnimating: Bool) {
+        isPresentationAnimating = isAnimating
     }
 
     func copySystemSummary() {

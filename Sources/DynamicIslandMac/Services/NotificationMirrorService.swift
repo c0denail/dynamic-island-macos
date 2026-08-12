@@ -6,6 +6,7 @@ import Combine
 final class NotificationMirrorService: ObservableObject {
     @Published private(set) var incomingNotification: MirroredNotification?
     @Published private(set) var isAccessibilityTrusted = false
+    var shouldDeferPolling: (() -> Bool)?
 
     private var poller: AnyCancellable?
     private var notificationCenterElement: AXUIElement?
@@ -87,6 +88,7 @@ final class NotificationMirrorService: ObservableObject {
             if !enabled { resetTracking() }
             return
         }
+        guard shouldDeferPolling?() != true else { return }
 
         guard let runningApplication = NSRunningApplication
             .runningApplications(withBundleIdentifier: "com.apple.notificationcenterui")

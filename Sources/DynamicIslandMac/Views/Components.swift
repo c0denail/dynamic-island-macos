@@ -63,7 +63,7 @@ struct MiniWaveform: View {
     let color: Color
 
     var body: some View {
-        TimelineView(.animation(minimumInterval: isActive ? 0.16 : 1)) { context in
+        TimelineView(.animation(minimumInterval: isActive ? 1.0 / 60.0 : 1)) { context in
             let phase = context.date.timeIntervalSinceReferenceDate
             HStack(alignment: .center, spacing: 2) {
                 ForEach(0..<9, id: \.self) { index in

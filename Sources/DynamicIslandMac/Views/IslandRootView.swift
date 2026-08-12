@@ -11,6 +11,10 @@ struct IslandRootView: View {
             content
         }
         .contentShape(Rectangle())
+        .onTapGesture {
+            guard island.presentation != .expanded else { return }
+            island.openContextualActivity()
+        }
         .onHover(perform: island.handleHover)
         .contextMenu {
             Button("Medya") { island.open(.media) }
@@ -21,6 +25,11 @@ struct IslandRootView: View {
         .preferredColorScheme(.dark)
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Dynamic Island")
+        .accessibilityAddTraits(.isButton)
+        .accessibilityAction {
+            guard island.presentation != .expanded else { return }
+            island.openContextualActivity()
+        }
     }
 
     @ViewBuilder
@@ -29,23 +38,24 @@ struct IslandRootView: View {
         case .mini:
             if island.hasPhysicalNotch {
                 Color.clear
-                    .contentShape(Rectangle())
-                    .onTapGesture(perform: island.openContextualActivity)
                     .accessibilityLabel("Gizli Dynamic Island etkinleştiricisi")
             } else {
                 MiniIslandView()
-                    .contentShape(Rectangle())
-                    .onTapGesture(perform: island.openContextualActivity)
                     .transition(.opacity.combined(with: .scale(scale: 0.94)))
             }
         case .compact:
             CompactIslandView()
-                .contentShape(Rectangle())
-                .onTapGesture(perform: island.openContextualActivity)
                 .transition(.opacity.combined(with: .scale(scale: 0.96, anchor: .top)))
         case .expanded:
-            ExpandedIslandView()
-                .transition(.opacity.combined(with: .scale(scale: 0.96, anchor: .top)))
+            if island.isPresentationAnimating {
+                // Expanded controls have a large intrinsic size. Deferring them
+                // prevents AppKit from snapping the panel halfway open before
+                // the frame animation has drawn its first interpolated frame.
+                Color.clear
+            } else {
+                ExpandedIslandView()
+                    .transition(.opacity.combined(with: .scale(scale: 0.96, anchor: .top)))
+            }
         }
     }
 

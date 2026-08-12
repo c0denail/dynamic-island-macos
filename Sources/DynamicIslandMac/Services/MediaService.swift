@@ -1,6 +1,27 @@
 import AppKit
 import Combine
 
+private struct AppleScriptMediaSnapshot: Sendable {
+    let source: String
+    let isPlaying: Bool
+    let title: String
+    let artist: String
+    let duration: TimeInterval
+    let elapsed: TimeInterval
+    let artworkURL: URL?
+}
+
+private enum AppleScriptRefreshResult: Sendable {
+    case snapshot(AppleScriptMediaSnapshot)
+    case noContent
+    case malformed
+}
+
+private enum MediaRefreshResult: Sendable {
+    case system(SystemNowPlayingSnapshot)
+    case appleScript(AppleScriptRefreshResult)
+}
+
 @MainActor
 final class MediaService: ObservableObject {
     @Published var title = "Bir şeyler çalın"
@@ -102,21 +123,25 @@ final class MediaService: ObservableObject {
     }
 
     func refresh() {
-        guard let systemBridge else {
-            refreshAppleScript()
-            return
-        }
         guard !refreshInFlight else { return }
         refreshInFlight = true
+        let bridge = systemBridge
 
         Task { [weak self] in
-            let snapshot = await Task.detached { systemBridge.snapshot() }.value
+            let result = await Task.detached(priority: .utility) {
+                if let bridge, let snapshot = bridge.snapshot() {
+                    return MediaRefreshResult.system(snapshot)
+                }
+                return MediaRefreshResult.appleScript(Self.readAppleScriptSnapshot())
+            }.value
             guard let self else { return }
             self.refreshInFlight = false
-            if let snapshot {
+
+            switch result {
+            case .system(let snapshot):
                 self.apply(snapshot)
-            } else {
-                self.refreshAppleScript()
+            case .appleScript(let result):
+                self.apply(result)
             }
         }
     }
@@ -138,7 +163,7 @@ final class MediaService: ObservableObject {
         }
     }
 
-    private func refreshAppleScript() {
+    nonisolated private static func readAppleScriptSnapshot() -> AppleScriptRefreshResult {
         let script = """
         set outputText to ""
         tell application "System Events"
@@ -163,24 +188,70 @@ final class MediaService: ObservableObject {
         return outputText
         """
 
-        guard let output = execute(script), !output.isEmpty else {
-            missedPolls += 1
-            if missedPolls >= 2 { clearNowPlaying() }
-            return
+        guard let output = executeAppleScript(script), !output.isEmpty else {
+            return .noContent
         }
 
         let fields = output.components(separatedBy: "|||")
-        guard fields.count >= 6 else { return }
-        missedPolls = 0
-        source = fields[0]
-        isPlaying = fields[1].lowercased().contains("playing")
-        title = fields[2]
-        artist = fields[3]
-        duration = fields[4].islandLocalizedTimeInterval
-        elapsed = fields[5].islandLocalizedTimeInterval
-        lastPositionUpdate = Date()
-        artworkData = nil
-        artworkURL = fields.count > 6 ? URL(string: fields[6].trimmingCharacters(in: .whitespacesAndNewlines)) : nil
+        guard fields.count >= 6 else { return .malformed }
+
+        return .snapshot(
+            AppleScriptMediaSnapshot(
+                source: fields[0],
+                isPlaying: fields[1].lowercased().contains("playing"),
+                title: fields[2],
+                artist: fields[3],
+                duration: fields[4].islandLocalizedTimeInterval,
+                elapsed: fields[5].islandLocalizedTimeInterval,
+                artworkURL: fields.count > 6
+                    ? URL(string: fields[6].trimmingCharacters(in: .whitespacesAndNewlines))
+                    : nil
+            )
+        )
+    }
+
+    private func apply(_ result: AppleScriptRefreshResult) {
+        switch result {
+        case .noContent:
+            missedPolls += 1
+            if missedPolls >= 2 { clearNowPlaying() }
+        case .malformed:
+            break
+        case .snapshot(let snapshot):
+            missedPolls = 0
+            source = snapshot.source
+            isPlaying = snapshot.isPlaying
+            title = snapshot.title
+            artist = snapshot.artist
+            duration = snapshot.duration
+            elapsed = snapshot.elapsed
+            lastPositionUpdate = Date()
+            artworkData = nil
+            artworkURL = snapshot.artworkURL
+        }
+    }
+
+    nonisolated private static func executeAppleScript(_ source: String) -> String? {
+        // NSAppleScript is main-thread-only. Use the system process for this
+        // background fallback so a slow Apple Event cannot freeze island input
+        // or violate Foundation's threading contract.
+        let process = Process()
+        let output = Pipe()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
+        process.arguments = ["-e", source]
+        process.standardOutput = output
+        process.standardError = FileHandle.nullDevice
+
+        do {
+            try process.run()
+            let data = output.fileHandleForReading.readDataToEndOfFile()
+            process.waitUntilExit()
+            guard process.terminationStatus == 0 else { return nil }
+            return String(data: data, encoding: .utf8)?
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+        } catch {
+            return nil
+        }
     }
 
     private func clearNowPlaying() {
