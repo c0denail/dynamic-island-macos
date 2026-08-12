@@ -70,6 +70,19 @@ struct CompactIslandView: View {
                     .monospacedDigit()
                     .foregroundStyle(textColor)
             }
+        case let .hardware(activity):
+            HStack(spacing: 7) {
+                HardwareActivityGlyph(activity: activity, size: 27)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(activity.title)
+                        .font(.system(size: 9.5, weight: .bold))
+                        .foregroundStyle(textColor)
+                    Text(activity.subtitle)
+                        .font(.system(size: 7.5, weight: .semibold))
+                        .foregroundStyle(textColor.opacity(0.48))
+                }
+                .lineLimit(1)
+            }
         case let .notification(notification):
             HStack(spacing: 7) {
                 NotificationAppGlyph(data: notification.appIconData, size: 27)
@@ -133,6 +146,8 @@ struct CompactIslandView: View {
                     .foregroundStyle(textColor.opacity(0.48))
                 whiteProgress(Double(value))
             }
+        case let .hardware(activity):
+            HardwareActivityStatusView(activity: activity)
         case let .notification(notification):
             HStack(spacing: 7) {
                 Text(notification.displayDetail.isEmpty ? "Yeni bildirim" : notification.displayDetail)

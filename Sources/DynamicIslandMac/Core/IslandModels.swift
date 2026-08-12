@@ -44,8 +44,116 @@ enum CompactActivity: Equatable {
     case timer
     case volume(value: Float, isMuted: Bool)
     case brightness(value: Float)
+    case hardware(IslandHardwareActivity)
     case notification(MirroredNotification)
     case message(icon: String, title: String, color: Color)
+}
+
+enum IslandHardwareActivityKind: String, Equatable, Sendable {
+    case charging
+    case powerConnected
+    case powerDisconnected
+    case airPods
+    case airPodsMax
+    case headphones
+    case storageConnected
+    case storageDisconnected
+
+    var iconName: String {
+        switch self {
+        case .charging: "bolt.fill"
+        case .powerConnected: "powerplug.fill"
+        case .powerDisconnected: "battery.100percent"
+        case .airPods: "airpods"
+        case .airPodsMax: "airpodsmax"
+        case .headphones: "headphones"
+        case .storageConnected: "externaldrive.fill.badge.plus"
+        case .storageDisconnected: "externaldrive.fill.badge.minus"
+        }
+    }
+
+    var isAudioAccessory: Bool {
+        self == .airPods || self == .airPodsMax || self == .headphones
+    }
+
+    var isStorage: Bool {
+        self == .storageConnected || self == .storageDisconnected
+    }
+}
+
+struct IslandBatteryLevels: Equatable, Sendable {
+    let combined: Int?
+    let left: Int?
+    let right: Int?
+    let caseLevel: Int?
+
+    init(combined: Int? = nil, left: Int? = nil, right: Int? = nil, caseLevel: Int? = nil) {
+        self.combined = Self.clamped(combined)
+        self.left = Self.clamped(left)
+        self.right = Self.clamped(right)
+        self.caseLevel = Self.clamped(caseLevel)
+    }
+
+    var preferred: Int? {
+        if let combined { return combined }
+        let buds = [left, right].compactMap { $0 }
+        guard !buds.isEmpty else { return caseLevel }
+        return Int((Double(buds.reduce(0, +)) / Double(buds.count)).rounded())
+    }
+
+    private static func clamped(_ value: Int?) -> Int? {
+        guard let value, (0...100).contains(value) else { return nil }
+        return value
+    }
+}
+
+struct IslandHardwareActivity: Identifiable, Equatable, Sendable {
+    let id: String
+    let sourceID: String?
+    let kind: IslandHardwareActivityKind
+    let title: String
+    let subtitle: String
+    let isConnected: Bool?
+    let battery: IslandBatteryLevels?
+    let totalCapacity: Int64?
+    let availableCapacity: Int64?
+    let volumeURL: URL?
+
+    init(
+        id: String = UUID().uuidString,
+        sourceID: String? = nil,
+        kind: IslandHardwareActivityKind,
+        title: String,
+        subtitle: String,
+        isConnected: Bool? = nil,
+        battery: IslandBatteryLevels? = nil,
+        totalCapacity: Int64? = nil,
+        availableCapacity: Int64? = nil,
+        volumeURL: URL? = nil
+    ) {
+        self.id = id
+        self.sourceID = sourceID
+        self.kind = kind
+        self.title = title
+        self.subtitle = subtitle
+        self.isConnected = isConnected
+        self.battery = battery
+        self.totalCapacity = totalCapacity
+        self.availableCapacity = availableCapacity
+        self.volumeURL = volumeURL
+    }
+
+    var progress: Double? {
+        if let batteryPercent = battery?.preferred {
+            return Double(batteryPercent) / 100
+        }
+        guard let totalCapacity, totalCapacity > 0, let availableCapacity else { return nil }
+        return min(1, max(0, Double(totalCapacity - availableCapacity) / Double(totalCapacity)))
+    }
+
+    var duration: TimeInterval {
+        kind.isAudioAccessory ? 4.6 : 4.0
+    }
 }
 
 struct MirroredNotification: Identifiable, Equatable, Sendable {

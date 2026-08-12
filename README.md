@@ -14,6 +14,9 @@ MacBook çentiğiyle fiziksel olarak hizalanan, SwiftUI ile yazılmış yerel bi
 - macOS Saat içinde veya Dynamic Island’dan başlatılan sayaç ve kronometreleri `mobiletimerd` durumundan canlı gösterir; Clock tek doğruluk kaynağıdır.
 - CoreAudio ile klavye, AirPods ve Denetim Merkezi ses değişikliklerini; solda ses değeri, sağda düz beyaz seviye çubuğu olacak biçimde yatay Dynamic Island HUD'u olarak gösterir.
 - Yerleşik ekranın klavye veya Denetim Merkezi üzerinden değişen parlaklığını aynı yatay düzende; solda güneş simgesi/yüzde, sağda düz beyaz seviye çubuğuyla gösterir.
+- Mac güç adaptörüne takıldığında veya çıkarıldığında pil yüzdesi ve varsa tahmini dolum süresiyle şarj animasyonu gösterir.
+- AirPods, AirPods Pro, AirPods Max ve diğer Bluetooth kulaklıkları ayrı simgelerle algılar; bağlantı animasyonu ve macOS’un güvenilir biçimde sunduğu kulaklık pil seviyelerini gösterir.
+- USB, Thunderbolt ve SD kart depolama aygıtları takıldığında veya çıkarıldığında aygıt adı, türü, kapasitesi ve kullanım çubuğuyla bağlantı animasyonu gösterir; dahili, ağ ve disk image birimlerini filtreler.
 - Sistem görünümündeki Wi‑Fi ve Bluetooth kartları açılır bağlantı panelleridir: radyoları açıp kapatır, yakındaki Wi‑Fi ağlarını ve eşleşmiş Bluetooth aygıtlarını listeler, bağlantı kurar veya keser.
 - Özet görünümündeki Wi‑Fi durumuna tıklamak doğrudan Sistem bölümündeki Wi‑Fi bağlantı panelini açar.
 - Özet görünümünde yaklaşan etkinliği gösteren Takvim kartı bulunur; karta tıklanınca aylık takvim ve yaklaşan etkinlikler Wi‑Fi paneli gibi genişler.
@@ -55,7 +58,7 @@ Başka bir Mac'e kopyalanabilen DMG paketini oluşturmak için:
 make dmg
 ```
 
-Paket `dist/Dynamic-Island-for-macOS-v1.0.7.dmg` konumuna yazılır. DMG içindeki uygulama **Applications** kısayoluna sürüklenir. Paket Developer ID ile notarize edilmediğinden başka bir Mac'te ilk açılışta **Sistem Ayarları → Gizlilik ve Güvenlik → Yine de Aç** adımı gerekebilir. Paketleme betiği `CODE_SIGN_IDENTITY` verilmişse onu, aksi halde bu Mac'teki Apple Development kimliğini kullanır; kimlik bulunamazsa ad-hoc imzaya geri döner. Kararlı bir imza, Erişilebilirlik izninin güncellemelerde aynı uygulamayla eşleşmesini sağlar.
+Paket `dist/Dynamic-Island-for-macOS-v1.0.8.dmg` konumuna yazılır. DMG içindeki uygulama **Applications** kısayoluna sürüklenir. Paket Developer ID ile notarize edilmediğinden başka bir Mac'te ilk açılışta **Sistem Ayarları → Gizlilik ve Güvenlik → Yine de Aç** adımı gerekebilir. Paketleme betiği `CODE_SIGN_IDENTITY` verilmişse onu, aksi halde bu Mac'teki Apple Development kimliğini kullanır; kimlik bulunamazsa ad-hoc imzaya geri döner. Kararlı bir imza, Erişilebilirlik izninin güncellemelerde aynı uygulamayla eşleşmesini sağlar.
 
 Temiz bir kurulumun ilk çalıştırmasında Dynamic Island; Bildirim, Konum/Wi‑Fi, Bluetooth, Takvim, Medya Otomasyonu ve Erişilebilirlik izinlerini sırayla isteyen kurulum penceresini gösterir.
 
@@ -82,6 +85,9 @@ Oturum açılışında çalıştır seçeneği için uygulamayı önce `dist` kl
 - `ClockTimerService`: macOS Clock timer/kronometre durumunun salt-okunur canlı senkronu ve Erişilebilirlik tabanlı Clock komut köprüsü.
 - `SystemStatusService`: IOKit pil, Network ağ, CoreAudio ses, yerleşik ekran parlaklığı ve tek sefer yetkilendirilen XPC yardımcısıyla Düşük Güç Modu yönetimi.
 - `ConnectivityService`: CoreWLAN Wi‑Fi tarama/bağlanma ve IOBluetooth aygıt/güç yönetimi.
+- `ChargingEventService`: IOKit güç kaynağı değişikliklerinden şarj takma/çıkarma olayları ve pil bilgileri.
+- `AudioAccessoryService`: CoreAudio, IOBluetooth ve standart HID verileriyle kulaklık türü, bağlantısı ve mevcut pil bilgileri.
+- `ExternalStorageService`: NSWorkspace ve Disk Arbitration ile fiziksel harici depolama takma/çıkarma olayları.
 - `NotificationMirrorService`: Bildirim Merkezi banner'larını erişilebilirlik ağacından algılama, içerik çıkarma ve gerçek bildirime yönlendirme.
 - `Views`: Mini, kompakt ve geniş SwiftUI arayüzleri.
 

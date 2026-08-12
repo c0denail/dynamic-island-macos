@@ -54,6 +54,10 @@ struct ExpandedIslandView: View {
                 .contentShape(Capsule())
                 .onTapGesture { island.activateNotification(notification) }
                 .transition(.move(edge: .top).combined(with: .opacity))
+            } else if case let .hardware(activity) = island.temporaryMessage {
+                HardwareActivityBanner(activity: activity)
+                    .padding(.top, max(35, island.notchHeight + 3))
+                    .transition(.move(edge: .top).combined(with: .opacity))
             }
         }
         .animation(.spring(response: 0.34, dampingFraction: 0.82), value: island.temporaryMessage)

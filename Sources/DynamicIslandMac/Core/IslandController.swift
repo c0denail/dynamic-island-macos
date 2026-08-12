@@ -22,6 +22,9 @@ final class IslandController: ObservableObject {
     let system = SystemStatusService()
     let connectivity = ConnectivityService()
     let notifications = NotificationMirrorService()
+    let charging = ChargingEventService()
+    let storage = ExternalStorageService()
+    let audioAccessories = AudioAccessoryService()
     let theme = IslandTheme()
 
     private var cancellables = Set<AnyCancellable>()
@@ -30,6 +33,9 @@ final class IslandController: ObservableObject {
     private var notificationTask: Task<Void, Never>?
     private var notificationQueue: [MirroredNotification] = []
     private var activeNotificationID: String?
+    private var hardwareTask: Task<Void, Never>?
+    private var hardwareQueue: [IslandHardwareActivity] = []
+    private var activeHardwareActivity: IslandHardwareActivity?
     private var globalMonitor: Any?
     private var localMonitor: Any?
 
@@ -89,6 +95,34 @@ final class IslandController: ObservableObject {
                 self?.enqueueNotification(notification)
             }
             .store(in: &cancellables)
+
+        charging.$incomingEvent
+            .compactMap { $0 }
+            .sink { [weak self] event in
+                self?.handleChargingEvent(event)
+            }
+            .store(in: &cancellables)
+
+        storage.$latestEvent
+            .compactMap { $0 }
+            .sink { [weak self] event in
+                self?.handleStorageEvent(event)
+            }
+            .store(in: &cancellables)
+
+        audioAccessories.$connectionEvent
+            .compactMap { $0 }
+            .sink { [weak self] event in
+                self?.handleAudioAccessoryEvent(event)
+            }
+            .store(in: &cancellables)
+
+        audioAccessories.$connectedAccessories
+            .dropFirst()
+            .sink { [weak self] accessories in
+                self?.updateVisibleAudioAccessory(accessories)
+            }
+            .store(in: &cancellables)
     }
 
     var compactActivity: CompactActivity {
@@ -104,6 +138,9 @@ final class IslandController: ObservableObject {
         system.start()
         connectivity.start()
         notifications.start()
+        charging.start()
+        storage.start()
+        audioAccessories.start()
         installHotKey()
     }
 
@@ -113,7 +150,11 @@ final class IslandController: ObservableObject {
         system.stop()
         connectivity.stop()
         notifications.stop()
+        charging.stop()
+        storage.stop()
+        audioAccessories.stop()
         notificationTask?.cancel()
+        hardwareTask?.cancel()
         if let globalMonitor { NSEvent.removeMonitor(globalMonitor) }
         if let localMonitor { NSEvent.removeMonitor(localMonitor) }
     }
@@ -147,6 +188,10 @@ final class IslandController: ObservableObject {
             let didActivate = notifications.activateSource(for: notification)
             finishActiveNotification()
             if !didActivate { open(.overview) }
+            return
+        }
+        if case let .hardware(activity) = temporaryMessage {
+            activateHardwareActivity(activity)
             return
         }
         if media.hasActiveSource {
@@ -184,7 +229,7 @@ final class IslandController: ObservableObject {
     }
 
     func showTemporaryActivity(_ activity: CompactActivity, duration: TimeInterval) {
-        guard activeNotificationID == nil else { return }
+        guard activeNotificationID == nil, activeHardwareActivity == nil else { return }
         messageTask?.cancel()
         temporaryMessage = activity
         if presentation == .mini { presentation = .compact }
@@ -205,6 +250,25 @@ final class IslandController: ObservableObject {
         if !didActivate { open(.overview) }
     }
 
+    func activateHardwareActivity(_ activity: IslandHardwareActivity) {
+        finishActiveHardwareActivity()
+
+        switch activity.kind {
+        case .charging, .powerConnected, .powerDisconnected:
+            open(.system)
+        case .airPods, .airPodsMax, .headphones:
+            openSystemPanel(.bluetooth)
+        case .storageConnected:
+            if let volumeURL = activity.volumeURL {
+                NSWorkspace.shared.activateFileViewerSelecting([volumeURL])
+            } else {
+                open(.overview)
+            }
+        case .storageDisconnected:
+            open(.overview)
+        }
+    }
+
     func previewNotification() {
         enqueueNotification(
             MirroredNotification(
@@ -223,6 +287,7 @@ final class IslandController: ObservableObject {
         guard activeNotificationID != notification.id,
               !notificationQueue.contains(where: { $0.id == notification.id })
         else { return }
+        suspendActiveHardwareActivityForNotification()
         notificationQueue.append(notification)
         presentNextNotificationIfNeeded()
     }
@@ -250,10 +315,212 @@ final class IslandController: ObservableObject {
         if case .notification = temporaryMessage { temporaryMessage = nil }
 
         if notificationQueue.isEmpty {
-            if presentation != .expanded { presentation = preferredCollapsedPresentation }
+            presentNextHardwareActivityIfNeeded()
+            if activeHardwareActivity == nil, presentation != .expanded {
+                presentation = preferredCollapsedPresentation
+            }
         } else {
             presentNextNotificationIfNeeded()
         }
+    }
+
+    private func handleChargingEvent(_ event: ChargingConnectionEvent) {
+        let percentage = event.snapshot.batteryPercentage
+        let battery = IslandBatteryLevels(combined: percentage)
+
+        switch event.kind {
+        case .connectedToPower:
+            let subtitle: String
+            if let minutes = event.snapshot.estimatedMinutesToFull, minutes > 0 {
+                subtitle = "\(formatMinutes(minutes)) sonra dolacak"
+            } else if event.snapshot.isCharging {
+                subtitle = percentage.map { "Pil %\($0)" } ?? "Güç adaptörü bağlı"
+            } else {
+                subtitle = "Güç adaptörü bağlı"
+            }
+            enqueueHardwareActivity(
+                IslandHardwareActivity(
+                    id: "power:\(event.kind)",
+                    sourceID: "power",
+                    kind: event.snapshot.isCharging ? .charging : .powerConnected,
+                    title: event.snapshot.isCharging ? "Mac şarj oluyor" : "Güç adaptörü bağlandı",
+                    subtitle: subtitle,
+                    isConnected: true,
+                    battery: battery
+                )
+            )
+        case .disconnectedFromPower:
+            enqueueHardwareActivity(
+                IslandHardwareActivity(
+                    id: "power:\(event.kind)",
+                    sourceID: "power",
+                    kind: .powerDisconnected,
+                    title: "Güç adaptörü çıkarıldı",
+                    subtitle: percentage.map { "Pil %\($0) · Pil gücü kullanılıyor" } ?? "Pil gücü kullanılıyor",
+                    isConnected: false,
+                    battery: battery
+                )
+            )
+        }
+    }
+
+    private func handleStorageEvent(_ event: ExternalStorageEvent) {
+        let volume = event.volume
+        let kind: IslandHardwareActivityKind = event.action == .connected
+            ? .storageConnected
+            : .storageDisconnected
+        let subtitle: String
+        if event.action == .connected {
+            let total = ByteCountFormatter.string(fromByteCount: volume.totalCapacityBytes, countStyle: .file)
+            subtitle = "\(volume.kind.displayName) · \(total)"
+        } else {
+            subtitle = "\(volume.kind.displayName) aygıtının bağlantısı kesildi"
+        }
+
+        enqueueHardwareActivity(
+            IslandHardwareActivity(
+                id: "storage:\(volume.id):\(event.action.rawValue)",
+                sourceID: "storage:\(volume.id)",
+                kind: kind,
+                title: event.action == .connected ? volume.name : "\(volume.name) çıkarıldı",
+                subtitle: subtitle,
+                isConnected: event.action == .connected,
+                totalCapacity: volume.totalCapacityBytes,
+                availableCapacity: volume.availableCapacityBytes,
+                volumeURL: event.action == .connected ? volume.mountURL : nil
+            )
+        )
+        storage.clearLatestEvent(id: event.id)
+    }
+
+    private func handleAudioAccessoryEvent(_ event: AudioAccessoryConnectionEvent) {
+        enqueueHardwareActivity(makeAudioHardwareActivity(for: event.accessory, state: event.state))
+    }
+
+    private func makeAudioHardwareActivity(
+        for accessory: AudioAccessorySnapshot,
+        state: AudioAccessoryConnectionState
+    ) -> IslandHardwareActivity {
+        let kind: IslandHardwareActivityKind
+        switch accessory.kind {
+        case .airPods, .airPodsPro:
+            kind = .airPods
+        case .airPodsMax:
+            kind = .airPodsMax
+        case .headphones:
+            kind = .headphones
+        }
+
+        let connected = state == .connected
+        let battery = IslandBatteryLevels(
+            combined: accessory.batteryPercent,
+            left: accessory.batteryLeftPercent,
+            right: accessory.batteryRightPercent,
+            caseLevel: accessory.batteryCasePercent
+        )
+        let batteryDetail = battery.preferred.map { " · Şarj %\($0)" } ?? ""
+        return IslandHardwareActivity(
+            id: "audio:\(accessory.id):\(state.rawValue)",
+            sourceID: "audio:\(accessory.id)",
+            kind: kind,
+            title: accessory.name,
+            subtitle: connected ? "Kulaklık bağlandı\(batteryDetail)" : "Kulaklık bağlantısı kesildi",
+            isConnected: connected,
+            battery: battery
+        )
+    }
+
+    private func updateVisibleAudioAccessory(_ accessories: [AudioAccessorySnapshot]) {
+        for accessory in accessories {
+            let activity = makeAudioHardwareActivity(for: accessory, state: .connected)
+            if activeHardwareActivity?.id == activity.id {
+                activeHardwareActivity = activity
+                if case let .hardware(current) = temporaryMessage, current.id == activity.id {
+                    temporaryMessage = .hardware(activity)
+                }
+            }
+            for index in hardwareQueue.indices where hardwareQueue[index].id == activity.id {
+                hardwareQueue[index] = activity
+            }
+        }
+    }
+
+    private func enqueueHardwareActivity(_ activity: IslandHardwareActivity) {
+        guard UserDefaults.standard.object(forKey: "showHardwareHUD") == nil
+                || UserDefaults.standard.bool(forKey: "showHardwareHUD")
+        else { return }
+
+        if let sourceID = activity.sourceID {
+            hardwareQueue.removeAll { $0.sourceID == sourceID }
+            if activeHardwareActivity?.sourceID == sourceID {
+                presentHardwareActivity(activity)
+                return
+            }
+        } else {
+            guard activeHardwareActivity?.id != activity.id,
+                  !hardwareQueue.contains(where: { $0.id == activity.id })
+            else { return }
+        }
+
+        hardwareQueue.append(activity)
+        if hardwareQueue.count > 8 {
+            hardwareQueue.removeFirst(hardwareQueue.count - 8)
+        }
+        presentNextHardwareActivityIfNeeded()
+    }
+
+    private func presentNextHardwareActivityIfNeeded() {
+        guard activeNotificationID == nil,
+              activeHardwareActivity == nil,
+              !hardwareQueue.isEmpty
+        else { return }
+
+        presentHardwareActivity(hardwareQueue.removeFirst())
+    }
+
+    private func presentHardwareActivity(_ activity: IslandHardwareActivity) {
+        hardwareTask?.cancel()
+        activeHardwareActivity = activity
+        messageTask?.cancel()
+        temporaryMessage = .hardware(activity)
+        if presentation != .expanded { presentation = .compact }
+
+        hardwareTask = Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .seconds(activity.duration))
+            guard !Task.isCancelled else { return }
+            self?.finishActiveHardwareActivity()
+        }
+    }
+
+    private func suspendActiveHardwareActivityForNotification() {
+        guard let activeHardwareActivity else { return }
+        hardwareTask?.cancel()
+        hardwareTask = nil
+        hardwareQueue.insert(activeHardwareActivity, at: 0)
+        self.activeHardwareActivity = nil
+        if case .hardware = temporaryMessage { temporaryMessage = nil }
+    }
+
+    private func finishActiveHardwareActivity() {
+        hardwareTask?.cancel()
+        hardwareTask = nil
+        activeHardwareActivity = nil
+        if case .hardware = temporaryMessage { temporaryMessage = nil }
+
+        if hardwareQueue.isEmpty {
+            if activeNotificationID == nil, presentation != .expanded {
+                presentation = preferredCollapsedPresentation
+            }
+        } else {
+            presentNextHardwareActivityIfNeeded()
+        }
+    }
+
+    private func formatMinutes(_ minutes: Int) -> String {
+        if minutes < 60 { return "\(minutes) dk" }
+        let hours = minutes / 60
+        let remainder = minutes % 60
+        return remainder == 0 ? "\(hours) sa" : "\(hours) sa \(remainder) dk"
     }
 
     func updateDisplayMetrics(notchWidth: CGFloat, notchHeight: CGFloat, hasNotch: Bool) {

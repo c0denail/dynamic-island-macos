@@ -9,6 +9,7 @@ struct PreferencesView: View {
     @AppStorage("showVolumeHUD") private var showVolumeHUD = true
     @AppStorage("showBrightnessHUD") private var showBrightnessHUD = true
     @AppStorage("showNotificationHUD") private var showNotificationHUD = true
+    @AppStorage("showHardwareHUD") private var showHardwareHUD = true
     @AppStorage("islandPetEnabled") private var isPetEnabled = true
     @AppStorage("islandPetKind") private var selectedPet = IslandPetKind.byte.rawValue
     @AppStorage("islandPetSpeed") private var petSpeed = 1.0
@@ -24,6 +25,7 @@ struct PreferencesView: View {
                     .onChange(of: showNotificationHUD) { _, enabled in
                         island.notifications.featurePreferenceDidChange(enabled: enabled)
                     }
+                Toggle("Şarj ve aygıt bağlantılarını adada göster", isOn: $showHardwareHUD)
                 Toggle("Oturum açıldığında çalıştır", isOn: $launchAtLogin)
                     .onChange(of: launchAtLogin) { _, enabled in
                         updateLaunchAtLogin(enabled)
@@ -117,6 +119,7 @@ struct PreferencesView: View {
                 Label("macOS bildirimleri", systemImage: "bell")
                 Label("Pil, ağ, çıkış sesi ve ekran parlaklığı", systemImage: "macbook")
                 Label("Wi‑Fi ağları ve Bluetooth aygıt denetimi", systemImage: "wifi")
+                Label("Şarj, kulaklık ve harici depolama bağlantı animasyonları", systemImage: "cable.connector")
                 Text("İlk medya komutunda macOS, Music veya Spotify erişimi için izin isteyebilir.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -144,7 +147,7 @@ struct PreferencesView: View {
                 HStack {
                     Text("Dynamic Island for macOS")
                     Spacer()
-                    Text(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0.7")
+                    Text(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0.8")
                         .foregroundStyle(.secondary)
                 }
             }

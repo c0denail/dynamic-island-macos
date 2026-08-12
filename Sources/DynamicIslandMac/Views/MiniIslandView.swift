@@ -30,6 +30,8 @@ struct MiniIslandView: View {
             statusGlyph(isMuted ? "speaker.slash.fill" : "speaker.wave.2.fill", color: hudColor)
         case let .brightness(value):
             statusGlyph(value < 0.34 ? "sun.min.fill" : "sun.max.fill", color: hudColor)
+        case let .hardware(activity):
+            HardwareActivityGlyph(activity: activity, size: 24)
         case let .notification(notification):
             NotificationAppGlyph(data: notification.appIconData, size: 24)
         case let .message(icon, _, color):
@@ -63,6 +65,17 @@ struct MiniIslandView: View {
             Text("\(Int((value * 100).rounded()))%")
                 .font(.system(size: 10, weight: .bold, design: .rounded))
                 .foregroundStyle(textColor)
+        case let .hardware(activity):
+            if let percentage = activity.battery?.preferred {
+                Text("\(percentage)%")
+                    .font(.system(size: 10, weight: .bold, design: .rounded))
+                    .monospacedDigit()
+                    .foregroundStyle(textColor)
+            } else {
+                Text(activity.isConnected == false ? "Ayrıldı" : (activity.kind.isStorage ? "Disk" : "Bağlı"))
+                    .font(.system(size: 10, weight: .semibold, design: .rounded))
+                    .foregroundStyle(textColor)
+            }
         case let .notification(notification):
             Text(notification.displayTitle)
                 .font(.system(size: 10, weight: .semibold, design: .rounded))
