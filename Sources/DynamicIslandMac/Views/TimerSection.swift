@@ -3,6 +3,9 @@ import SwiftUI
 struct TimerSection: View {
     @EnvironmentObject private var timer: TimerService
     @EnvironmentObject private var clockTimer: ClockTimerService
+    @Environment(\.islandHUDColor) private var hudColor
+    @Environment(\.islandTextColor) private var textColor
+    @Environment(\.islandHUDContrastingColor) private var hudContrastingColor
 
     var body: some View {
         VStack(spacing: 10) {
@@ -46,7 +49,7 @@ struct TimerSection: View {
                     .font(.system(size: 10, weight: .bold))
                 Text(activityDetail)
                     .font(.system(size: 8, weight: .medium))
-                    .foregroundStyle(.white.opacity(0.42))
+                    .foregroundStyle(textColor.opacity(0.42))
                     .lineLimit(1)
             }
 
@@ -91,12 +94,12 @@ struct TimerSection: View {
 
                     Text(clockTimer.current == nil ? "Başlatınca sayaç macOS Saat uygulamasında oluşturulur." : "Sayaç Clock’tan canlı okunuyor; süreyi değiştirmek için önce sıfırlayın.")
                         .font(.system(size: 9, weight: .medium))
-                        .foregroundStyle(.white.opacity(0.38))
+                        .foregroundStyle(textColor.opacity(0.38))
                         .frame(maxWidth: .infinity, alignment: .leading)
                 } else {
                     Text("Başlat, durdur ve sıfırla işlemleri doğrudan macOS Saat kronometresiyle eşitlenir.")
                         .font(.system(size: 9, weight: .medium))
-                        .foregroundStyle(.white.opacity(0.38))
+                        .foregroundStyle(textColor.opacity(0.38))
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
@@ -130,7 +133,7 @@ struct TimerSection: View {
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 11)
                     .background(timerColor, in: Capsule())
-                    .foregroundStyle(.black)
+                    .foregroundStyle(hudContrastingColor)
                 }
                 .buttonStyle(ScaleButtonStyle())
                 .disabled(clockTimer.isPerformingAction)
@@ -142,7 +145,7 @@ struct TimerSection: View {
                         .font(.system(size: 10, weight: .bold))
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 9)
-                        .background(.white.opacity(0.09), in: Capsule())
+                        .background(textColor.opacity(0.09), in: Capsule())
                 }
                 .buttonStyle(ScaleButtonStyle())
                 .disabled(!clockTimer.isActive(timer.mode) || clockTimer.isPerformingAction)
@@ -178,7 +181,7 @@ struct TimerSection: View {
     }
 
     private var timerColor: Color {
-        timer.mode == .stopwatch ? IslandPalette.cyan : IslandPalette.orange
+        hudColor
     }
 }
 
@@ -186,6 +189,9 @@ private struct PresetButton: View {
     let title: String
     let selected: Bool
     let action: () -> Void
+    @Environment(\.islandHUDColor) private var hudColor
+    @Environment(\.islandTextColor) private var textColor
+    @Environment(\.islandHUDContrastingColor) private var hudContrastingColor
 
     var body: some View {
         Button(action: action) {
@@ -193,8 +199,8 @@ private struct PresetButton: View {
                 .font(.system(size: 9, weight: .bold))
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 8)
-                .background(selected ? .white : .white.opacity(0.07), in: Capsule())
-                .foregroundStyle(selected ? .black : .white.opacity(0.55))
+                .background(selected ? hudColor : textColor.opacity(0.07), in: Capsule())
+                .foregroundStyle(selected ? hudContrastingColor : textColor.opacity(0.55))
         }
         .buttonStyle(ScaleButtonStyle())
     }

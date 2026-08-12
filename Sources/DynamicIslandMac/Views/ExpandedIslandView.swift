@@ -2,6 +2,9 @@ import SwiftUI
 
 struct ExpandedIslandView: View {
     @EnvironmentObject private var island: IslandController
+    @Environment(\.islandHUDColor) private var hudColor
+    @Environment(\.islandTextColor) private var textColor
+    @Environment(\.islandHUDContrastingColor) private var hudContrastingColor
 
     var body: some View {
         VStack(spacing: 0) {
@@ -34,19 +37,19 @@ struct ExpandedIslandView: View {
                             .font(.system(size: 10, weight: .bold))
                         Text(notification.displayDetail.isEmpty ? notification.appName : notification.displayDetail)
                             .font(.system(size: 8, weight: .semibold))
-                            .foregroundStyle(.white.opacity(0.55))
+                            .foregroundStyle(textColor.opacity(0.55))
                             .lineLimit(1)
                     }
                     Spacer()
                     Image(systemName: "chevron.right")
                         .font(.system(size: 9, weight: .bold))
-                        .foregroundStyle(.white.opacity(0.35))
+                        .foregroundStyle(textColor.opacity(0.35))
                 }
                 .padding(.horizontal, 12)
                 .padding(.vertical, 8)
                 .frame(width: 360)
                 .background(.black.opacity(0.96), in: Capsule())
-                .overlay(Capsule().stroke(.white.opacity(0.12), lineWidth: 0.7))
+                .overlay(Capsule().stroke(textColor.opacity(0.12), lineWidth: 0.7))
                 .padding(.top, max(35, island.notchHeight + 3))
                 .contentShape(Capsule())
                 .onTapGesture { island.activateNotification(notification) }
@@ -60,10 +63,10 @@ struct ExpandedIslandView: View {
         HStack {
             HStack(spacing: 8) {
                 ZStack {
-                    Circle().fill(IslandPalette.primary.opacity(0.16))
+                    Circle().fill(hudColor.opacity(0.16))
                     Image(systemName: "capsule.inset.filled")
                         .font(.system(size: 12, weight: .bold))
-                        .foregroundStyle(IslandPalette.primary)
+                        .foregroundStyle(hudColor)
                 }
                 .frame(width: 27, height: 27)
 
@@ -72,7 +75,7 @@ struct ExpandedIslandView: View {
                         .font(.system(size: 12, weight: .bold))
                     Text("macOS")
                         .font(.system(size: 9, weight: .semibold))
-                        .foregroundStyle(.white.opacity(0.4))
+                        .foregroundStyle(textColor.opacity(0.4))
                 }
             }
 
@@ -81,13 +84,13 @@ struct ExpandedIslandView: View {
             Text(Date.now, style: .time)
                 .font(.system(size: 11, weight: .semibold, design: .rounded))
                 .monospacedDigit()
-                .foregroundStyle(.white.opacity(0.46))
+                .foregroundStyle(textColor.opacity(0.46))
 
             Button(action: island.collapse) {
                 Image(systemName: "chevron.up")
                     .font(.system(size: 10, weight: .bold))
                     .frame(width: 27, height: 27)
-                    .background(.white.opacity(0.08), in: Circle())
+                    .background(textColor.opacity(0.08), in: Circle())
             }
             .buttonStyle(ScaleButtonStyle())
             .help("Adayı küçült")
@@ -107,10 +110,10 @@ struct ExpandedIslandView: View {
                         Text(section.rawValue)
                     }
                     .font(.system(size: 10, weight: .bold))
-                    .foregroundStyle(island.selectedSection == section ? .black : .white.opacity(0.52))
+                    .foregroundStyle(island.selectedSection == section ? hudContrastingColor : textColor.opacity(0.52))
                     .frame(maxWidth: .infinity, minHeight: 28)
                     .background(
-                        island.selectedSection == section ? AnyShapeStyle(Color.white) : AnyShapeStyle(Color.clear),
+                        island.selectedSection == section ? AnyShapeStyle(hudColor) : AnyShapeStyle(Color.clear),
                         in: Capsule()
                     )
                     .contentShape(Capsule())
@@ -121,7 +124,7 @@ struct ExpandedIslandView: View {
             }
         }
         .padding(4)
-        .background(.white.opacity(0.065), in: Capsule())
+        .background(textColor.opacity(0.065), in: Capsule())
     }
 }
 
@@ -131,6 +134,8 @@ private struct OverviewSection: View {
     @EnvironmentObject private var timer: TimerService
     @EnvironmentObject private var clockTimer: ClockTimerService
     @EnvironmentObject private var system: SystemStatusService
+    @Environment(\.islandHUDColor) private var hudColor
+    @Environment(\.islandTextColor) private var textColor
 
     var body: some View {
         HStack(spacing: 12) {
@@ -150,7 +155,7 @@ private struct OverviewSection: View {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(activityMode.rawValue)
                                 .font(.system(size: 9, weight: .bold))
-                                .foregroundStyle(.white.opacity(0.48))
+                                .foregroundStyle(textColor.opacity(0.48))
                             Text(clockTimer.displayedTime(for: activityMode, fallbackDuration: timer.duration).islandClock)
                                 .font(.system(size: 18, weight: .bold, design: .rounded))
                                 .monospacedDigit()
@@ -158,7 +163,7 @@ private struct OverviewSection: View {
                         Spacer()
                         Image(systemName: "chevron.right")
                             .font(.system(size: 9, weight: .bold))
-                            .foregroundStyle(.white.opacity(0.24))
+                            .foregroundStyle(textColor.opacity(0.24))
                     }
                     .padding(12)
                     .background(IslandPalette.surface, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
@@ -166,30 +171,25 @@ private struct OverviewSection: View {
                 .buttonStyle(ScaleButtonStyle())
 
                 HStack(spacing: 8) {
-                    QuickStatus(icon: system.isCharging ? "bolt.fill" : "battery.75percent", value: "\(system.batteryPercent)%", color: system.isCharging ? IslandPalette.primary : .white)
+                    QuickStatus(icon: system.isCharging ? "bolt.fill" : "battery.75percent", value: "\(system.batteryPercent)%", color: hudColor)
                     Button {
                         island.openSystemPanel(.wifi)
                     } label: {
-                        QuickStatus(icon: system.isOnline ? "wifi" : "wifi.slash", value: system.networkLabel, color: system.isOnline ? IslandPalette.cyan : .red)
+                        QuickStatus(icon: system.isOnline ? "wifi" : "wifi.slash", value: system.networkLabel, color: system.isOnline ? hudColor : .red)
                     }
                     .buttonStyle(ScaleButtonStyle())
                     .frame(maxWidth: .infinity)
                     .help("Sistem Wi‑Fi ağlarını göster")
                 }
 
-                HStack(spacing: 8) {
-                    QuickAction(icon: "doc.on.doc", title: "Özeti kopyala", color: IslandPalette.cyan, action: island.copySystemSummary)
-                    QuickAction(icon: "clock", title: "Saat'te aç", color: IslandPalette.orange) {
-                        clockTimer.openClock(mode: activityMode)
-                    }
-                }
+                CalendarOverviewCard()
             }
             .frame(width: 268)
         }
     }
 
     private var timerColor: Color {
-        activityMode == .stopwatch ? IslandPalette.cyan : IslandPalette.orange
+        hudColor
     }
 
     private var activityMode: TimerMode {
@@ -211,29 +211,5 @@ private struct QuickStatus: View {
         .frame(maxWidth: .infinity)
         .padding(.vertical, 9)
         .background(IslandPalette.surface, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-    }
-}
-
-private struct QuickAction: View {
-    let icon: String
-    let title: String
-    let color: Color
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            VStack(spacing: 5) {
-                Image(systemName: icon)
-                    .font(.system(size: 13, weight: .bold))
-                    .foregroundStyle(color)
-                Text(title)
-                    .font(.system(size: 8, weight: .bold))
-                    .lineLimit(1)
-            }
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 8)
-            .background(color.opacity(0.1), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-        }
-        .buttonStyle(ScaleButtonStyle())
     }
 }

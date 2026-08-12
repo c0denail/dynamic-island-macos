@@ -2,6 +2,7 @@ import SwiftUI
 
 struct IslandRootView: View {
     @EnvironmentObject private var island: IslandController
+    @EnvironmentObject private var theme: IslandTheme
 
     var body: some View {
         ZStack(alignment: .top) {
@@ -11,6 +12,10 @@ struct IslandRootView: View {
             content
         }
         .contentShape(Rectangle())
+        .foregroundStyle(theme.textColor)
+        .environment(\.islandHUDColor, theme.hudColor)
+        .environment(\.islandTextColor, theme.textColor)
+        .environment(\.islandHUDContrastingColor, theme.hudContrastingColor)
         .onTapGesture {
             guard island.presentation != .expanded else { return }
             island.openContextualActivity()

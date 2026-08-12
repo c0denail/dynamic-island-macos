@@ -8,6 +8,9 @@ struct MediaSection: View {
 
 struct MediaCard: View {
     @EnvironmentObject private var media: MediaService
+    @Environment(\.islandHUDColor) private var hudColor
+    @Environment(\.islandTextColor) private var textColor
+    @Environment(\.islandHUDContrastingColor) private var hudContrastingColor
     let compact: Bool
 
     var body: some View {
@@ -20,11 +23,11 @@ struct MediaCard: View {
                         Text(media.source.isEmpty ? "ŞİMDİ ÇALAN" : media.source.uppercased())
                             .font(.system(size: 9, weight: .bold))
                             .tracking(1.1)
-                            .foregroundStyle(IslandPalette.primary)
+                            .foregroundStyle(hudColor)
                         Spacer()
                         if !media.source.isEmpty {
                             Circle()
-                                .fill(media.isPlaying ? IslandPalette.primary : .white.opacity(0.3))
+                                .fill(media.isPlaying ? hudColor : textColor.opacity(0.3))
                                 .frame(width: 6, height: 6)
                         }
                     }
@@ -33,11 +36,11 @@ struct MediaCard: View {
                         .lineLimit(1)
                     Text(media.artist)
                         .font(.system(size: compact ? 10 : 12, weight: .medium))
-                        .foregroundStyle(.white.opacity(0.5))
+                        .foregroundStyle(textColor.opacity(0.5))
                         .lineLimit(1)
 
                     if !compact {
-                        MiniWaveform(isActive: media.isPlaying, color: IslandPalette.primary)
+                        MiniWaveform(isActive: media.isPlaying, color: hudColor)
                             .frame(height: 20)
                             .padding(.top, 4)
                     }
@@ -52,7 +55,7 @@ struct MediaCard: View {
                     ),
                     in: 0...1
                 )
-                .tint(IslandPalette.primary)
+                .tint(hudColor)
                 .controlSize(.mini)
 
                 HStack {
@@ -61,7 +64,7 @@ struct MediaCard: View {
                     Text("−\(media.remaining.islandClock)")
                 }
                 .font(.system(size: 8, weight: .semibold, design: .monospaced))
-                .foregroundStyle(.white.opacity(0.35))
+                .foregroundStyle(textColor.opacity(0.35))
             }
 
             HStack(spacing: compact ? 13 : 18) {
@@ -73,8 +76,8 @@ struct MediaCard: View {
                     Image(systemName: media.isPlaying ? "pause.fill" : "play.fill")
                         .font(.system(size: compact ? 16 : 19, weight: .bold))
                         .frame(width: compact ? 42 : 49, height: compact ? 42 : 49)
-                        .background(.white, in: Circle())
-                        .foregroundStyle(.black)
+                        .background(hudColor, in: Circle())
+                        .foregroundStyle(hudContrastingColor)
                 }
                 .buttonStyle(ScaleButtonStyle())
                 SmallMediaButton(icon: "forward.fill", size: compact ? 34 : 39, action: media.next)
@@ -87,7 +90,7 @@ struct MediaCard: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(
             LinearGradient(
-                colors: [IslandPalette.primary.opacity(0.105), IslandPalette.surface],
+                colors: [hudColor.opacity(0.105), IslandPalette.surface],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             ),

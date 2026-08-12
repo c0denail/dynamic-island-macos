@@ -3,11 +3,15 @@ import SwiftUI
 
 struct PreferencesView: View {
     @EnvironmentObject private var island: IslandController
+    @EnvironmentObject private var theme: IslandTheme
     @AppStorage("launchAtLogin") private var launchAtLogin = false
     @AppStorage("hoverToExpand") private var hoverToExpand = true
     @AppStorage("showVolumeHUD") private var showVolumeHUD = true
     @AppStorage("showBrightnessHUD") private var showBrightnessHUD = true
     @AppStorage("showNotificationHUD") private var showNotificationHUD = true
+    @AppStorage("islandPetEnabled") private var isPetEnabled = true
+    @AppStorage("islandPetKind") private var selectedPet = IslandPetKind.orbit.rawValue
+    @AppStorage("islandPetSpeed") private var petSpeed = 1.0
     @State private var loginError: String?
 
     var body: some View {
@@ -25,6 +29,86 @@ struct PreferencesView: View {
                         updateLaunchAtLogin(enabled)
                     }
                 Text("Adayı her yerden açmak için ⌥ Boşluk tuşlarını kullanın.")
+                    .foregroundStyle(.secondary)
+            }
+
+            Section("Kişiselleştirme") {
+                HStack {
+                    Label("HUD ve ilerleme rengi", systemImage: "slider.horizontal.below.square.filled.and.square")
+                    Spacer()
+                    ColorPicker("HUD ve ilerleme rengi", selection: hudColor, supportsOpacity: false)
+                        .labelsHidden()
+                }
+
+                HStack {
+                    Label("Uygulama yazı rengi", systemImage: "textformat")
+                    Spacer()
+                    ColorPicker("Uygulama yazı rengi", selection: textColor, supportsOpacity: false)
+                        .labelsHidden()
+                }
+
+                HStack(spacing: 10) {
+                    Capsule()
+                        .fill(theme.hudColor)
+                        .frame(width: 74, height: 7)
+                    Text("Dynamic Island önizleme")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(theme.textColor)
+                    Spacer()
+                    Button("Varsayılana Dön") { theme.reset() }
+                        .disabled(theme.hud == .white && theme.text == .white)
+                }
+
+                Text("HUD rengi; ses, parlaklık, medya ve sayaç ilerleme göstergelerinde kullanılır. Seçimler bu Mac’te saklanır.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                Divider()
+
+                Toggle("Ada maskotunu göster", isOn: $isPetEnabled)
+
+                if isPetEnabled {
+                    Picker("Maskot", selection: $selectedPet) {
+                        ForEach(IslandPetKind.allCases) { pet in
+                            HStack {
+                                IslandPetAvatar(kind: pet, gait: 0.7, horizontalDirection: 1)
+                                    .frame(width: 26, height: 26)
+                                Text(pet.title)
+                            }
+                            .tag(pet.rawValue)
+                        }
+                    }
+
+                    HStack(spacing: 12) {
+                        IslandPetAvatar(
+                            kind: IslandPetKind(rawValue: selectedPet) ?? .orbit,
+                            gait: Date.now.timeIntervalSinceReferenceDate,
+                            horizontalDirection: 1
+                        )
+                        .frame(width: 32, height: 32)
+                        .padding(5)
+                        .background(.black, in: RoundedRectangle(cornerRadius: 11, style: .continuous))
+
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text((IslandPetKind(rawValue: selectedPet) ?? .orbit).title)
+                                .font(.system(size: 11, weight: .bold))
+                            Text((IslandPetKind(rawValue: selectedPet) ?? .orbit).subtitle)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+
+                        Spacer()
+
+                        Slider(value: $petSpeed, in: 0.55...1.8)
+                            .frame(width: 120)
+                        Text("Hız")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
+                Text("Maskot yalnızca adanın sol, alt ve sağ kenarlarında dolaşır; fiziksel çentiğin üstüne çıkmaz.")
+                    .font(.caption)
                     .foregroundStyle(.secondary)
             }
 
@@ -61,13 +145,27 @@ struct PreferencesView: View {
                 HStack {
                     Text("Dynamic Island for macOS")
                     Spacer()
-                    Text(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0.2")
+                    Text(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0.5")
                         .foregroundStyle(.secondary)
                 }
             }
         }
         .formStyle(.grouped)
-        .frame(width: 500, height: 440)
+        .frame(width: 540, height: 680)
+    }
+
+    private var hudColor: Binding<Color> {
+        Binding(
+            get: { theme.hudColor },
+            set: { newColor in theme.setHUDColor(newColor) }
+        )
+    }
+
+    private var textColor: Binding<Color> {
+        Binding(
+            get: { theme.textColor },
+            set: { newColor in theme.setTextColor(newColor) }
+        )
     }
 
     private func updateLaunchAtLogin(_ enabled: Bool) {

@@ -16,6 +16,9 @@ MacBook çentiğiyle fiziksel olarak hizalanan, SwiftUI ile yazılmış yerel bi
 - Yerleşik ekranın klavye veya Denetim Merkezi üzerinden değişen parlaklığını aynı yatay düzende; solda güneş simgesi/yüzde, sağda düz beyaz seviye çubuğuyla gösterir.
 - Sistem görünümündeki Wi‑Fi ve Bluetooth kartları açılır bağlantı panelleridir: radyoları açıp kapatır, yakındaki Wi‑Fi ağlarını ve eşleşmiş Bluetooth aygıtlarını listeler, bağlantı kurar veya keser.
 - Özet görünümündeki Wi‑Fi durumuna tıklamak doğrudan Sistem bölümündeki Wi‑Fi bağlantı panelini açar.
+- Özet görünümünde yaklaşan etkinliği gösteren Takvim kartı bulunur; karta tıklanınca aylık takvim ve yaklaşan etkinlikler Wi‑Fi paneli gibi genişler.
+- Ayarlar’daki Kişiselleştirme bölümünden HUD/ilerleme çubuklarının ve uygulama yazılarının renkleri değiştirilebilir.
+- Seçilebilir Orbit, Neko ve Boo maskotları bir ipe bağlıymış gibi adanın yalnızca sol, alt ve sağ kenarlarında sürekli dolaşır; maskot, hız ve aç/kapat seçeneği Ayarlar’dan değiştirilebilir.
 - Pil kartındaki Düşük Güç düğmesi macOS güç tasarrufu modunu açıp kapatır; pil, şarj, ağ ve sistem çıkış sesi durumunu gösterir.
 - Tüm masaüstlerinde ve tam ekran uygulamaların üzerinde çalışır.
 - Menü çubuğu simgesi ve `⌥ Boşluk` global kısayolu içerir.
@@ -52,9 +55,9 @@ Başka bir Mac'e kopyalanabilen DMG paketini oluşturmak için:
 make dmg
 ```
 
-Paket `dist/Dynamic-Island-for-macOS-1.0.2.dmg` konumuna yazılır. DMG içindeki uygulama **Applications** kısayoluna sürüklenir. Paket Developer ID ile notarize edilmediğinden başka bir Mac'te ilk açılışta **Sistem Ayarları → Gizlilik ve Güvenlik → Yine de Aç** adımı gerekebilir. Paketleme betiği `CODE_SIGN_IDENTITY` verilmişse onu, aksi halde bu Mac'teki Apple Development kimliğini kullanır; kimlik bulunamazsa ad-hoc imzaya geri döner. Kararlı bir imza, Erişilebilirlik izninin güncellemelerde aynı uygulamayla eşleşmesini sağlar.
+Paket `dist/Dynamic-Island-for-macOS-v1.0.5.dmg` konumuna yazılır. DMG içindeki uygulama **Applications** kısayoluna sürüklenir. Paket Developer ID ile notarize edilmediğinden başka bir Mac'te ilk açılışta **Sistem Ayarları → Gizlilik ve Güvenlik → Yine de Aç** adımı gerekebilir. Paketleme betiği `CODE_SIGN_IDENTITY` verilmişse onu, aksi halde bu Mac'teki Apple Development kimliğini kullanır; kimlik bulunamazsa ad-hoc imzaya geri döner. Kararlı bir imza, Erişilebilirlik izninin güncellemelerde aynı uygulamayla eşleşmesini sağlar.
 
-Temiz bir kurulumun ilk çalıştırmasında Dynamic Island; Bildirim, Konum/Wi‑Fi, Bluetooth, Medya Otomasyonu ve Erişilebilirlik izinlerini sırayla isteyen kurulum penceresini gösterir.
+Temiz bir kurulumun ilk çalıştırmasında Dynamic Island; Bildirim, Konum/Wi‑Fi, Bluetooth, Takvim, Medya Otomasyonu ve Erişilebilirlik izinlerini sırayla isteyen kurulum penceresini gösterir.
 
 Release derlemesi, sistem genelindeki Now Playing verisini okuyabilmek için sabitlenmiş `MediaRemoteMini` BSD bileşenini indirip uygulama paketine ekler. `swift run` ile çalıştırılan geliştirme sürümü bu paketlenmiş köprü bulunmadığında Music/Spotify Apple Events yöntemine geri döner.
 

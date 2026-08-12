@@ -5,6 +5,8 @@ struct CompactIslandView: View {
     @EnvironmentObject private var media: MediaService
     @EnvironmentObject private var timer: TimerService
     @EnvironmentObject private var clockTimer: ClockTimerService
+    @Environment(\.islandHUDColor) private var hudColor
+    @Environment(\.islandTextColor) private var textColor
 
     var body: some View {
         GeometryReader { proxy in
@@ -35,10 +37,10 @@ struct CompactIslandView: View {
                 VStack(alignment: .leading, spacing: 1) {
                     Text(media.title)
                         .font(.system(size: 10, weight: .bold))
-                        .foregroundStyle(.white)
+                        .foregroundStyle(textColor)
                     Text(media.artist)
                         .font(.system(size: 7.5, weight: .semibold))
-                        .foregroundStyle(.white.opacity(0.48))
+                        .foregroundStyle(textColor.opacity(0.48))
                 }
                 .lineLimit(1)
             }
@@ -52,21 +54,21 @@ struct CompactIslandView: View {
             HStack(spacing: 8) {
                 Image(systemName: volumeIcon(value: value, isMuted: isMuted))
                     .font(.system(size: 13, weight: .bold))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(hudColor)
                 Text(isMuted ? "Kapalı" : "%\(Int((value * 100).rounded()))")
                     .font(.system(size: 11, weight: .bold, design: .rounded))
                     .monospacedDigit()
-                    .foregroundStyle(.white)
+                    .foregroundStyle(textColor)
             }
         case let .brightness(value):
             HStack(spacing: 8) {
                 Image(systemName: brightnessIcon(value: value))
                     .font(.system(size: 13, weight: .bold))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(hudColor)
                 Text("%\(Int((value * 100).rounded()))")
                     .font(.system(size: 11, weight: .bold, design: .rounded))
                     .monospacedDigit()
-                    .foregroundStyle(.white)
+                    .foregroundStyle(textColor)
             }
         case let .notification(notification):
             HStack(spacing: 7) {
@@ -74,10 +76,10 @@ struct CompactIslandView: View {
                 VStack(alignment: .leading, spacing: 1) {
                     Text(notification.displayTitle)
                         .font(.system(size: 9.5, weight: .bold))
-                        .foregroundStyle(.white)
+                        .foregroundStyle(textColor)
                     Text(notification.appName)
                         .font(.system(size: 7.5, weight: .semibold))
-                        .foregroundStyle(.white.opacity(0.48))
+                        .foregroundStyle(textColor.opacity(0.48))
                 }
                 .lineLimit(1)
             }
@@ -96,7 +98,7 @@ struct CompactIslandView: View {
                 HStack(spacing: 5) {
                     Text(media.displayedElapsed.islandClock)
                     Text("−\(media.remaining.islandClock)")
-                        .foregroundStyle(.white.opacity(0.42))
+                        .foregroundStyle(textColor.opacity(0.42))
                 }
                 .font(.system(size: 7.5, weight: .bold, design: .monospaced))
                 .monospacedDigit()
@@ -116,7 +118,7 @@ struct CompactIslandView: View {
                 Text(isMuted ? "SES KAPALI" : "SES DÜZEYİ")
                     .font(.system(size: 7, weight: .bold))
                     .tracking(0.8)
-                    .foregroundStyle(.white.opacity(0.48))
+                    .foregroundStyle(textColor.opacity(0.48))
                 whiteProgress(isMuted ? 0 : Double(value))
             }
         case let .brightness(value):
@@ -124,25 +126,25 @@ struct CompactIslandView: View {
                 Text("EKRAN PARLAKLIĞI")
                     .font(.system(size: 7, weight: .bold))
                     .tracking(0.8)
-                    .foregroundStyle(.white.opacity(0.48))
+                    .foregroundStyle(textColor.opacity(0.48))
                 whiteProgress(Double(value))
             }
         case let .notification(notification):
             HStack(spacing: 7) {
                 Text(notification.displayDetail.isEmpty ? "Yeni bildirim" : notification.displayDetail)
                     .font(.system(size: 8, weight: .semibold))
-                    .foregroundStyle(.white.opacity(0.72))
+                    .foregroundStyle(textColor.opacity(0.72))
                     .lineLimit(2)
                     .multilineTextAlignment(.leading)
                     .frame(width: 116, alignment: .leading)
                 Image(systemName: "chevron.right")
                     .font(.system(size: 8, weight: .bold))
-                    .foregroundStyle(.white.opacity(0.35))
+                    .foregroundStyle(textColor.opacity(0.35))
             }
         case .message:
             Image(systemName: "checkmark")
                 .font(.system(size: 12, weight: .heavy))
-                .foregroundStyle(.white)
+                .foregroundStyle(hudColor)
         case .idle:
             HStack(spacing: 8) {
                 Image(systemName: "sparkles")
@@ -151,7 +153,7 @@ struct CompactIslandView: View {
                 Image(systemName: "macbook")
             }
             .font(.system(size: 9, weight: .semibold))
-            .foregroundStyle(.white.opacity(0.55))
+            .foregroundStyle(textColor.opacity(0.55))
         }
     }
 
@@ -159,14 +161,14 @@ struct CompactIslandView: View {
         HStack(spacing: 7) {
             Image(systemName: icon)
                 .font(.system(size: 12, weight: .bold))
-                .foregroundStyle(.white)
+                .foregroundStyle(hudColor)
             VStack(alignment: .leading, spacing: 1) {
                 Text(title)
                     .font(.system(size: 9.5, weight: .bold))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(textColor)
                 Text(subtitle)
                     .font(.system(size: 7.5, weight: .semibold))
-                    .foregroundStyle(.white.opacity(0.44))
+                    .foregroundStyle(textColor.opacity(0.44))
             }
             .lineLimit(1)
         }
@@ -179,10 +181,10 @@ struct CompactIslandView: View {
     private func whiteProgress(_ progress: Double) -> some View {
         GeometryReader { proxy in
             Capsule()
-                .fill(.white.opacity(0.16))
+                .fill(hudColor.opacity(0.18))
                 .overlay(alignment: .leading) {
                     Capsule()
-                        .fill(.white)
+                        .fill(hudColor)
                         .frame(width: progress > 0 ? max(3, proxy.size.width * min(1, max(0, progress))) : 0)
                 }
         }

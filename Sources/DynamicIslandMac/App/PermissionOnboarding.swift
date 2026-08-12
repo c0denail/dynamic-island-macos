@@ -4,6 +4,7 @@ import Combine
 @preconcurrency import CoreBluetooth
 @preconcurrency import CoreLocation
 import CoreServices
+import EventKit
 import SwiftUI
 import UserNotifications
 
@@ -50,12 +51,14 @@ private final class PermissionOnboardingManager: NSObject, ObservableObject, @pr
     @Published var notificationPermission: PermissionProgress = .waiting
     @Published var locationPermission: PermissionProgress = .waiting
     @Published var bluetoothPermission: PermissionProgress = .waiting
+    @Published var calendarPermission: PermissionProgress = .waiting
     @Published var automationPermission: PermissionProgress = .waiting
     @Published var accessibilityPermission: PermissionProgress = .waiting
     @Published var isRunning = false
     @Published var isComplete = false
 
     private let notificationMirror: NotificationMirrorService
+    private let calendarStore = EKEventStore()
     private let locationManager = CLLocationManager()
     private var bluetoothManager: CBCentralManager?
     private var locationContinuation: CheckedContinuation<Void, Never>?
@@ -83,6 +86,7 @@ private final class PermissionOnboardingManager: NSObject, ObservableObject, @pr
             await self.requestNotifications()
             await self.requestLocation()
             await self.requestBluetooth()
+            await self.requestCalendar()
             await self.requestAutomation()
             await self.requestAccessibility()
             self.isRunning = false
@@ -157,6 +161,28 @@ private final class PermissionOnboardingManager: NSObject, ObservableObject, @pr
             Self.requestAutomationPermission(for: "com.apple.systemevents")
         }.value
         automationPermission = status == noErr ? .granted : (status == errAEEventNotPermitted ? .denied : .actionRequired)
+    }
+
+    private func requestCalendar() async {
+        switch EKEventStore.authorizationStatus(for: .event) {
+        case .authorized, .fullAccess:
+            calendarPermission = .granted
+            return
+        case .denied, .restricted, .writeOnly:
+            calendarPermission = .denied
+            return
+        case .notDetermined:
+            calendarPermission = .requesting
+        @unknown default:
+            calendarPermission = .actionRequired
+            return
+        }
+
+        do {
+            calendarPermission = try await calendarStore.requestFullAccessToEvents() ? .granted : .denied
+        } catch {
+            calendarPermission = .denied
+        }
     }
 
     private func requestAccessibility() async {
@@ -251,7 +277,7 @@ final class PermissionOnboardingCoordinator {
         }
 
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 610, height: 570),
+            contentRect: NSRect(x: 0, y: 0, width: 610, height: 625),
             styleMask: [.titled, .closable, .fullSizeContentView],
             backing: .buffered,
             defer: false
@@ -302,6 +328,7 @@ private struct PermissionOnboardingView: View {
                 permissionRow(icon: "bell.badge.fill", title: "Bildirimler", detail: "Sayaç uyarıları", state: manager.notificationPermission)
                 permissionRow(icon: "location.fill", title: "Konum / Wi‑Fi", detail: "Yakındaki Wi‑Fi ağlarının adları", state: manager.locationPermission)
                 permissionRow(icon: "dot.radiowaves.left.and.right", title: "Bluetooth", detail: "Eşleşmiş aygıtları gösterme ve bağlanma", state: manager.bluetoothPermission)
+                permissionRow(icon: "calendar", title: "Takvim", detail: "Aylık görünüm ve yaklaşan etkinlikler", state: manager.calendarPermission)
                 permissionRow(icon: "music.note", title: "Medya otomasyonu", detail: "Music ve Spotify denetimi", state: manager.automationPermission)
                 permissionRow(icon: "bell.and.waves.left.and.right.fill", title: "Erişilebilirlik", detail: "Bildirimleri gösterme ve macOS Saat’i denetleme", state: manager.accessibilityPermission)
             }
@@ -338,7 +365,7 @@ private struct PermissionOnboardingView: View {
             }
         }
         .padding(30)
-        .frame(width: 610, height: 570)
+        .frame(width: 610, height: 625)
         .background(Color(red: 0.025, green: 0.025, blue: 0.032))
         .preferredColorScheme(.dark)
         .task {

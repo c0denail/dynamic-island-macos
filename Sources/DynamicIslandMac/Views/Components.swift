@@ -4,11 +4,12 @@ struct ArtworkGlyph: View {
     let size: CGFloat
     var url: URL? = nil
     var data: Data? = nil
+    @Environment(\.islandHUDColor) private var hudColor
 
     var body: some View {
         ZStack {
             RoundedRectangle(cornerRadius: size * 0.25, style: .continuous)
-                .fill(.white.opacity(0.12))
+                .fill(hudColor.opacity(0.12))
 
             if let data, let image = NSImage(data: data) {
                 Image(nsImage: image)
@@ -27,7 +28,7 @@ struct ArtworkGlyph: View {
             } else {
                 Image(systemName: "music.note")
                     .font(.system(size: size * 0.26, weight: .bold))
-                    .foregroundStyle(.white.opacity(0.82))
+                    .foregroundStyle(hudColor.opacity(0.82))
             }
         }
         .frame(width: size, height: size)
@@ -38,11 +39,12 @@ struct ArtworkGlyph: View {
 struct NotificationAppGlyph: View {
     let data: Data?
     let size: CGFloat
+    @Environment(\.islandHUDColor) private var hudColor
 
     var body: some View {
         ZStack {
             RoundedRectangle(cornerRadius: size * 0.28, style: .continuous)
-                .fill(.white.opacity(0.12))
+                .fill(hudColor.opacity(0.12))
             if let data, let image = NSImage(data: data) {
                 Image(nsImage: image)
                     .resizable()
@@ -50,7 +52,7 @@ struct NotificationAppGlyph: View {
             } else {
                 Image(systemName: "bell.fill")
                     .font(.system(size: size * 0.38, weight: .bold))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(hudColor)
             }
         }
         .frame(width: size, height: size)
@@ -83,11 +85,12 @@ struct ProgressRing<Content: View>: View {
     let color: Color
     let size: CGFloat
     @ViewBuilder let content: () -> Content
+    @Environment(\.islandHUDColor) private var hudColor
 
     var body: some View {
         ZStack {
             Circle()
-                .stroke(.white.opacity(0.09), lineWidth: max(3, size * 0.055))
+                .stroke(hudColor.opacity(0.14), lineWidth: max(3, size * 0.055))
             if let progress {
                 Circle()
                     .trim(from: 0, to: max(0.015, 1 - progress))
@@ -110,14 +113,15 @@ struct SmallMediaButton: View {
     let icon: String
     var size: CGFloat = 29
     let action: () -> Void
+    @Environment(\.islandTextColor) private var textColor
 
     var body: some View {
         Button(action: action) {
             Image(systemName: icon)
                 .font(.system(size: size * 0.35, weight: .bold))
                 .frame(width: size, height: size)
-                .background(.white.opacity(0.075), in: Circle())
-                .foregroundStyle(.white.opacity(0.8))
+                .background(textColor.opacity(0.075), in: Circle())
+                .foregroundStyle(textColor.opacity(0.8))
         }
         .buttonStyle(ScaleButtonStyle())
     }

@@ -22,6 +22,7 @@ final class IslandController: ObservableObject {
     let system = SystemStatusService()
     let connectivity = ConnectivityService()
     let notifications = NotificationMirrorService()
+    let theme = IslandTheme()
 
     private var cancellables = Set<AnyCancellable>()
     private var collapseTask: Task<Void, Never>?
@@ -178,8 +179,8 @@ final class IslandController: ObservableObject {
         presentation = preferredCollapsedPresentation
     }
 
-    func showMessage(icon: String, title: String, color: Color = IslandPalette.primary) {
-        showTemporaryActivity(.message(icon: icon, title: title, color: color), duration: 2.4)
+    func showMessage(icon: String, title: String, color: Color? = nil) {
+        showTemporaryActivity(.message(icon: icon, title: title, color: color ?? theme.hudColor), duration: 2.4)
     }
 
     func showTemporaryActivity(_ activity: CompactActivity, duration: TimeInterval) {
@@ -270,7 +271,7 @@ final class IslandController: ObservableObject {
         let summary = "Pil: \(system.batteryPercent)% · Ağ: \(system.networkLabel) · Ses: \(Int(system.outputVolume * 100))% · Parlaklık: \(Int(system.displayBrightness * 100))%"
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(summary, forType: .string)
-        showMessage(icon: "doc.on.doc.fill", title: "Sistem özeti kopyalandı", color: IslandPalette.cyan)
+        showMessage(icon: "doc.on.doc.fill", title: "Sistem özeti kopyalandı", color: theme.hudColor)
     }
 
     private var preferredCollapsedPresentation: IslandPresentation {

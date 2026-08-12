@@ -41,6 +41,7 @@ struct DynamicIslandMacApp: App {
         Settings {
             PreferencesView()
                 .environmentObject(island)
+                .environmentObject(island.theme)
         }
     }
 }

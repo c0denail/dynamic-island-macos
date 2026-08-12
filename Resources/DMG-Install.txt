@@ -6,7 +6,7 @@ DYNAMIC ISLAND — KURULUM
    • Sistem Ayarları → Gizlilik ve Güvenlik bölümünü açın.
    • Aşağı kaydırıp Dynamic Island için “Yine de Aç” düğmesine basın.
    • Açılan son onay penceresinde “Aç” seçeneğini kullanın.
-4. İlk çalıştırma ekranında Bildirim, Konum/Wi‑Fi, Bluetooth, Medya Otomasyonu ve Erişilebilirlik izinlerini tamamlayın. Erişilebilirlik izni, bildirimlerin yanında macOS Saat sayaç/kronometre denetimi için de kullanılır.
+4. İlk çalıştırma ekranında Bildirim, Konum/Wi‑Fi, Bluetooth, Takvim, Medya Otomasyonu ve Erişilebilirlik izinlerini tamamlayın. Erişilebilirlik izni, bildirimlerin yanında macOS Saat sayaç/kronometre denetimi için de kullanılır.
    • Önceki sürümde Erişilebilirlik anahtarı açık olduğu halde Saat denetimi çalışmıyorsa eski Dynamic Island satırını “−” ile kaldırın, “+” ile /Applications/Dynamic Island.app dosyasını yeniden ekleyin ve uygulamayı kapatıp açın. Bu imza geçişi yalnızca bir kez gerekir.
 5. Düşük Güç düğmesini ilk kez kullandığınızda macOS yönetici onayını bir kez verin. Sonraki aç/kapat işlemleri yeniden parola istemez.
 

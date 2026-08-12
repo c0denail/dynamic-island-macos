@@ -5,6 +5,8 @@ struct MiniIslandView: View {
     @EnvironmentObject private var media: MediaService
     @EnvironmentObject private var timer: TimerService
     @EnvironmentObject private var clockTimer: ClockTimerService
+    @Environment(\.islandHUDColor) private var hudColor
+    @Environment(\.islandTextColor) private var textColor
 
     var body: some View {
         HStack(spacing: 10) {
@@ -23,19 +25,19 @@ struct MiniIslandView: View {
         case .media:
             ArtworkGlyph(size: 24)
         case .timer:
-            statusGlyph(activityMode == .stopwatch ? "stopwatch.fill" : "timer", color: timerColor)
+            statusGlyph(activityMode == .stopwatch ? "stopwatch.fill" : "timer", color: hudColor)
         case let .volume(_, isMuted):
-            statusGlyph(isMuted ? "speaker.slash.fill" : "speaker.wave.2.fill", color: IslandPalette.cyan)
+            statusGlyph(isMuted ? "speaker.slash.fill" : "speaker.wave.2.fill", color: hudColor)
         case let .brightness(value):
-            statusGlyph(value < 0.34 ? "sun.min.fill" : "sun.max.fill", color: .white)
+            statusGlyph(value < 0.34 ? "sun.min.fill" : "sun.max.fill", color: hudColor)
         case let .notification(notification):
             NotificationAppGlyph(data: notification.appIconData, size: 24)
         case let .message(icon, _, color):
             statusGlyph(icon, color: color)
         case .idle:
             HStack(spacing: 3) {
-                Circle().fill(IslandPalette.primary).frame(width: 5, height: 5)
-                Circle().fill(IslandPalette.cyan).frame(width: 5, height: 5)
+                Circle().fill(hudColor).frame(width: 5, height: 5)
+                Circle().fill(hudColor.opacity(0.55)).frame(width: 5, height: 5)
             }
         }
     }
@@ -44,25 +46,25 @@ struct MiniIslandView: View {
     private var trailingStatus: some View {
         switch island.compactActivity {
         case .media:
-            MiniWaveform(isActive: media.isPlaying, color: IslandPalette.primary)
+            MiniWaveform(isActive: media.isPlaying, color: hudColor)
                 .frame(width: 28, height: 18)
         case .timer:
             Text(clockTimer.displayedTime(for: activityMode, fallbackDuration: timer.duration).islandClock)
                 .font(.system(size: 11, weight: .bold, design: .rounded))
                 .monospacedDigit()
-                .foregroundStyle(timerColor)
+                .foregroundStyle(textColor)
         case let .volume(value, _):
             Text("\(Int((value * 100).rounded()))%")
                 .font(.system(size: 10, weight: .bold, design: .rounded))
-                .foregroundStyle(IslandPalette.cyan)
+                .foregroundStyle(textColor)
         case let .brightness(value):
             Text("\(Int((value * 100).rounded()))%")
                 .font(.system(size: 10, weight: .bold, design: .rounded))
-                .foregroundStyle(.white)
+                .foregroundStyle(textColor)
         case let .notification(notification):
             Text(notification.displayTitle)
                 .font(.system(size: 10, weight: .semibold, design: .rounded))
-                .foregroundStyle(.white)
+                .foregroundStyle(textColor)
                 .lineLimit(1)
         case let .message(_, title, color):
             Text(title)
@@ -72,7 +74,7 @@ struct MiniIslandView: View {
         case .idle:
             Image(systemName: "sparkles")
                 .font(.system(size: 10, weight: .semibold))
-                .foregroundStyle(.white.opacity(0.55))
+                .foregroundStyle(textColor.opacity(0.55))
         }
     }
 
@@ -82,10 +84,6 @@ struct MiniIslandView: View {
             .foregroundStyle(color)
             .frame(width: 24, height: 24)
             .background(color.opacity(0.14), in: Circle())
-    }
-
-    private var timerColor: Color {
-        activityMode == .stopwatch ? IslandPalette.cyan : IslandPalette.orange
     }
 
     private var activityMode: TimerMode {

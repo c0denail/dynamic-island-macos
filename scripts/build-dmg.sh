@@ -4,7 +4,7 @@ set -euo pipefail
 
 project_dir="$(cd "$(dirname "$0")/.." && pwd)"
 app_path="$project_dir/dist/Dynamic Island.app"
-dmg_path="$project_dir/dist/Dynamic-Island-for-macOS-1.0.2.dmg"
+dmg_path="$project_dir/dist/Dynamic-Island-for-macOS-v1.0.5.dmg"
 temp_root="$(mktemp -d /tmp/dynamic-island-dmg.XXXXXX)"
 stage_dir="$temp_root/Dynamic Island"
 

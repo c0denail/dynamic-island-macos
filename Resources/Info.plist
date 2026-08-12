@@ -17,9 +17,9 @@
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>
-    <string>1.0.2</string>
+    <string>1.0.5</string>
     <key>CFBundleVersion</key>
-    <string>3</string>
+    <string>5</string>
     <key>LSMinimumSystemVersion</key>
     <string>14.0</string>
     <key>LSUIElement</key>
@@ -28,6 +28,8 @@
     <string>Music ve Spotify oynatmayı denetlemek için otomasyon erişimi gerekir.</string>
     <key>NSBluetoothAlwaysUsageDescription</key>
     <string>Dynamic Island, eşleşmiş Bluetooth aygıtlarını göstermek ve bağlantılarını yönetmek için Bluetooth erişimi kullanır.</string>
+    <key>NSCalendarsFullAccessUsageDescription</key>
+    <string>Dynamic Island, aylık takviminizi ve yaklaşan etkinliklerinizi göstermek için Takvim erişimi kullanır.</string>
     <key>NSLocationUsageDescription</key>
     <string>Dynamic Island, yalnızca yakındaki Wi‑Fi ağlarının adlarını göstermek ve seçtiğiniz ağa bağlanmak için konum izni kullanır.</string>
     <key>NSHighResolutionCapable</key>

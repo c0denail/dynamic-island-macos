@@ -25,12 +25,16 @@ final class IslandPanelCoordinator: NSObject {
     private struct FrameAnimation {
         let startFrame: NSRect
         let targetFrame: NSRect
+        let targetPresentation: IslandPresentation
+        let notchHeight: CGFloat
         let startTime: TimeInterval
         let duration: TimeInterval
     }
 
     private let controller: IslandController
     private let panel: IslandPanel
+    private let petPanel: NSPanel
+    private let petLayout = IslandPetLayout()
     private var cancellables = Set<AnyCancellable>()
     private var screenObserver: NSObjectProtocol?
     private var frameAnimationTimer: Timer?
@@ -46,9 +50,16 @@ final class IslandPanelCoordinator: NSObject {
             backing: .buffered,
             defer: false
         )
+        petPanel = NSPanel(
+            contentRect: NSRect(origin: .zero, size: CGSize(width: 190 + 88, height: 38 + 56)),
+            styleMask: [.borderless, .nonactivatingPanel, .fullSizeContentView],
+            backing: .buffered,
+            defer: false
+        )
         super.init()
 
         configurePanel()
+        configurePetPanel()
 
         let root = IslandRootView()
             .environmentObject(controller)
@@ -57,6 +68,7 @@ final class IslandPanelCoordinator: NSObject {
             .environmentObject(controller.clockTimer)
             .environmentObject(controller.system)
             .environmentObject(controller.connectivity)
+            .environmentObject(controller.theme)
 
         let hosting = IslandHostingView(rootView: root)
         hosting.sizingOptions = []
@@ -66,6 +78,13 @@ final class IslandPanelCoordinator: NSObject {
         hosting.layer?.drawsAsynchronously = false
         hosting.layer?.backgroundColor = NSColor.clear.cgColor
         panel.contentView = hosting
+        let petHosting = NSHostingView(rootView: IslandPetOverlayView(layout: petLayout))
+        petHosting.sizingOptions = []
+        petHosting.autoresizingMask = [.width, .height]
+        petHosting.wantsLayer = true
+        petHosting.layer?.backgroundColor = NSColor.clear.cgColor
+        petHosting.setAccessibilityElement(false)
+        petPanel.contentView = petHosting
         panel.collapsedMouseDownHandler = { [weak controller] in
             guard let controller, controller.presentation != .expanded else { return false }
             controller.openContextualActivity()
@@ -115,6 +134,7 @@ final class IslandPanelCoordinator: NSObject {
     func show() {
         resize(for: controller.presentation, animated: false)
         panel.orderFrontRegardless()
+        petPanel.orderFrontRegardless()
     }
 
     private func configurePanel() {
@@ -134,9 +154,23 @@ final class IslandPanelCoordinator: NSObject {
         panel.ignoresMouseEvents = false
     }
 
+    private func configurePetPanel() {
+        petPanel.isOpaque = false
+        petPanel.backgroundColor = .clear
+        petPanel.hasShadow = false
+        petPanel.hidesOnDeactivate = false
+        petPanel.isReleasedWhenClosed = false
+        petPanel.level = NSWindow.Level(rawValue: Int(CGWindowLevelForKey(.statusWindow)) + 3)
+        petPanel.collectionBehavior = panel.collectionBehavior
+        petPanel.animationBehavior = .none
+        petPanel.ignoresMouseEvents = true
+        petPanel.contentView?.setAccessibilityElement(false)
+    }
+
     private func resize(for presentation: IslandPresentation, animated: Bool) {
         guard let screen = targetScreen else {
             stopPanelAnimation()
+            petLayout.setSuspended(true)
             return
         }
         var size = presentation.defaultSize
@@ -158,33 +192,53 @@ final class IslandPanelCoordinator: NSObject {
             y: screen.frame.maxY - size.height
         )
         let frame = NSRect(origin: origin, size: size)
+        let petFrame = petFrame(around: frame)
 
         guard animated, panel.isVisible else {
             frameAnimationTimer?.invalidate()
             frameAnimationTimer = nil
             frameAnimation = nil
             panel.setFrame(frame, display: true, animate: false)
+            petPanel.setFrame(petFrame, display: true, animate: false)
+            petLayout.update(islandSize: size, presentation: presentation, notchHeight: notchHeight)
+            petLayout.setSuspended(false)
             controller.setPresentationAnimating(false)
             return
         }
 
-        animatePanel(to: frame, duration: presentation == .expanded ? 0.3 : 0.24)
+        animatePanel(
+            to: frame,
+            presentation: presentation,
+            notchHeight: notchHeight,
+            duration: presentation == .expanded ? 0.3 : 0.24
+        )
     }
 
-    private func animatePanel(to targetFrame: NSRect, duration: TimeInterval) {
+    private func animatePanel(
+        to targetFrame: NSRect,
+        presentation: IslandPresentation,
+        notchHeight: CGFloat,
+        duration: TimeInterval
+    ) {
         frameAnimationTimer?.invalidate()
         frameAnimationTimer = nil
         frameAnimation = nil
         let startFrame = panel.frame
         guard startFrame != targetFrame else {
+            petPanel.setFrame(petFrame(around: targetFrame), display: true, animate: false)
+            petLayout.update(islandSize: targetFrame.size, presentation: presentation, notchHeight: notchHeight)
+            petLayout.setSuspended(false)
             controller.setPresentationAnimating(false)
             return
         }
 
         controller.setPresentationAnimating(true)
+        petLayout.setSuspended(true)
         frameAnimation = FrameAnimation(
             startFrame: startFrame,
             targetFrame: targetFrame,
+            targetPresentation: presentation,
+            notchHeight: notchHeight,
             startTime: ProcessInfo.processInfo.systemUptime,
             duration: max(0.01, duration)
         )
@@ -209,6 +263,7 @@ final class IslandPanelCoordinator: NSObject {
         frameAnimationTimer?.invalidate()
         frameAnimationTimer = nil
         frameAnimation = nil
+        petLayout.setSuspended(true)
         controller.setPresentationAnimating(true)
     }
 
@@ -236,20 +291,40 @@ final class IslandPanelCoordinator: NSObject {
         // Let the layer-backed hosting view schedule its redraw without
         // synchronously blocking input delivery on every interpolation.
         panel.setFrame(frame, display: false, animate: false)
+        petPanel.setFrame(petFrame(around: frame), display: false, animate: false)
 
         if progress >= 1 {
             timer.invalidate()
             frameAnimationTimer = nil
             frameAnimation = nil
             panel.setFrame(targetFrame, display: true, animate: false)
+            petPanel.setFrame(petFrame(around: targetFrame), display: true, animate: false)
+            petLayout.update(
+                islandSize: targetFrame.size,
+                presentation: animation.targetPresentation,
+                notchHeight: animation.notchHeight
+            )
+            petLayout.setSuspended(false)
             controller.setPresentationAnimating(false)
         }
+    }
+
+    private func petFrame(around islandFrame: NSRect) -> NSRect {
+        let horizontalMargin: CGFloat = 44
+        let bottomMargin: CGFloat = 52
+        return NSRect(
+            x: islandFrame.minX - horizontalMargin,
+            y: islandFrame.minY - bottomMargin,
+            width: islandFrame.width + horizontalMargin * 2,
+            height: islandFrame.height + bottomMargin
+        )
     }
 
     private func stopPanelAnimation() {
         frameAnimationTimer?.invalidate()
         frameAnimationTimer = nil
         frameAnimation = nil
+        petLayout.setSuspended(false)
         controller.setPresentationAnimating(false)
     }
 

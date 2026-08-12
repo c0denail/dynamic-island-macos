@@ -5,6 +5,7 @@ struct SystemSection: View {
     @EnvironmentObject private var island: IslandController
     @EnvironmentObject private var system: SystemStatusService
     @EnvironmentObject private var connectivity: ConnectivityService
+    @Environment(\.islandTextColor) private var textColor
     @State private var showWiFi = false
     @State private var showBluetooth = false
 
@@ -64,7 +65,7 @@ struct SystemSection: View {
                     onChange: { system.setDisplayBrightness(Float($0)) }
                 )
 
-                Divider().overlay(.white.opacity(0.08))
+                Divider().overlay(textColor.opacity(0.08))
 
                 SystemSliderControl(
                     icon: system.outputVolume == 0 ? "speaker.slash.fill" : "speaker.wave.2.fill",
@@ -78,7 +79,7 @@ struct SystemSection: View {
                         .font(.system(size: 9, weight: .bold))
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 9)
-                        .background(.white.opacity(0.09), in: Capsule())
+                        .background(textColor.opacity(0.09), in: Capsule())
                 }
                 .buttonStyle(ScaleButtonStyle())
             }
@@ -114,12 +115,15 @@ struct SystemSection: View {
 
 private struct WiFiConnectionsPanel: View {
     @EnvironmentObject private var connectivity: ConnectivityService
+    @Environment(\.islandHUDColor) private var hudColor
+    @Environment(\.islandTextColor) private var textColor
+    @Environment(\.islandHUDContrastingColor) private var hudContrastingColor
     @State private var securedNetwork: WiFiNetworkItem?
     @State private var password = ""
 
     var body: some View {
         VStack(spacing: 12) {
-            panelHeader(
+            PanelHeader(
                 icon: "wifi",
                 title: "Wi‑Fi",
                 isOn: Binding(
@@ -149,8 +153,8 @@ private struct WiFiConnectionsPanel: View {
                         .onSubmit(connectSelectedWiFi)
                     Button("Bağlan", action: connectSelectedWiFi)
                         .buttonStyle(.borderedProminent)
-                        .tint(.white)
-                        .foregroundStyle(.black)
+                        .tint(hudColor)
+                        .foregroundStyle(hudContrastingColor)
                         .disabled(password.isEmpty || connectivity.connectingWiFiSSID != nil)
                 }
                 .padding(11)
@@ -158,10 +162,10 @@ private struct WiFiConnectionsPanel: View {
             }
 
             if !connectivity.wifiEnabled {
-                emptyState(icon: "wifi.slash", text: "Yakındaki ağları görmek için Wi‑Fi’yi açın.")
+                EmptyState(icon: "wifi.slash", text: "Yakındaki ağları görmek için Wi‑Fi’yi açın.")
             } else if connectivity.locationAuthorization == .denied || connectivity.locationAuthorization == .restricted {
                 VStack(spacing: 11) {
-                    emptyState(icon: "location.slash.fill", text: "Yakındaki Wi‑Fi ağlarını göstermek için konum izni gerekiyor.")
+                    EmptyState(icon: "location.slash.fill", text: "Yakındaki Wi‑Fi ağlarını göstermek için konum izni gerekiyor.")
                     Button("Konum Ayarlarını Aç") {
                         guard let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_LocationServices") else { return }
                         NSWorkspace.shared.open(url)
@@ -194,14 +198,14 @@ private struct WiFiConnectionsPanel: View {
                                     } else if network.isSecure {
                                         Image(systemName: "lock.fill")
                                             .font(.system(size: 8))
-                                            .foregroundStyle(.secondary)
+                                            .foregroundStyle(textColor.opacity(0.55))
                                     }
                                 }
                                 .padding(.horizontal, 10)
                                 .padding(.vertical, 8)
                                 .contentShape(Rectangle())
                                 .background(
-                                    network.isCurrent ? .white.opacity(0.10) : .clear,
+                                    network.isCurrent ? hudColor.opacity(0.14) : .clear,
                                     in: RoundedRectangle(cornerRadius: 9, style: .continuous)
                                 )
                             }
@@ -219,7 +223,7 @@ private struct WiFiConnectionsPanel: View {
                     .lineLimit(2)
             }
 
-            panelFooter(
+            PanelFooter(
                 refresh: connectivity.prepareWiFiAccess,
                 settingsURL: "x-apple.systempreferences:com.apple.Wi-Fi-Settings.extension"
             )
@@ -268,10 +272,12 @@ private struct WiFiConnectionsPanel: View {
 
 private struct BluetoothConnectionsPanel: View {
     @EnvironmentObject private var connectivity: ConnectivityService
+    @Environment(\.islandHUDColor) private var hudColor
+    @Environment(\.islandTextColor) private var textColor
 
     var body: some View {
         VStack(spacing: 12) {
-            panelHeader(
+            PanelHeader(
                 icon: "dot.radiowaves.left.and.right",
                 title: "Bluetooth",
                 isOn: Binding(
@@ -281,9 +287,9 @@ private struct BluetoothConnectionsPanel: View {
             )
 
             if !connectivity.bluetoothEnabled {
-                emptyState(icon: "dot.radiowaves.left.and.right", text: "Aygıtları görmek için Bluetooth’u açın.")
+                EmptyState(icon: "dot.radiowaves.left.and.right", text: "Aygıtları görmek için Bluetooth’u açın.")
             } else if connectivity.bluetoothDevices.isEmpty {
-                emptyState(icon: "headphones", text: "Eşleşmiş Bluetooth aygıtı bulunamadı.")
+                EmptyState(icon: "headphones", text: "Eşleşmiş Bluetooth aygıtı bulunamadı.")
             } else {
                 ScrollView {
                     LazyVStack(spacing: 4) {
@@ -301,14 +307,14 @@ private struct BluetoothConnectionsPanel: View {
                                             .lineLimit(1)
                                         Text(device.isConnected ? "Bağlı" : "Bağlı değil")
                                             .font(.system(size: 8, weight: .medium))
-                                            .foregroundStyle(.secondary)
+                                            .foregroundStyle(textColor.opacity(0.55))
                                     }
                                     Spacer()
                                     if connectivity.connectingBluetoothAddress == device.address {
                                         ProgressView().controlSize(.mini)
                                     } else {
                                         Circle()
-                                            .fill(device.isConnected ? .white : .white.opacity(0.18))
+                                            .fill(device.isConnected ? hudColor : textColor.opacity(0.18))
                                             .frame(width: 7, height: 7)
                                     }
                                 }
@@ -316,7 +322,7 @@ private struct BluetoothConnectionsPanel: View {
                                 .padding(.vertical, 8)
                                 .contentShape(Rectangle())
                                 .background(
-                                    device.isConnected ? .white.opacity(0.10) : .clear,
+                                    device.isConnected ? hudColor.opacity(0.14) : .clear,
                                     in: RoundedRectangle(cornerRadius: 9, style: .continuous)
                                 )
                             }
@@ -334,7 +340,7 @@ private struct BluetoothConnectionsPanel: View {
                     .lineLimit(2)
             }
 
-            panelFooter(
+            PanelFooter(
                 refresh: connectivity.refreshStatus,
                 settingsURL: "x-apple.systempreferences:com.apple.BluetoothSettings"
             )
@@ -363,31 +369,34 @@ private struct ConnectivityTile: View {
     let value: String
     let detail: String
     let isEnabled: Bool
+    @Environment(\.islandHUDColor) private var hudColor
+    @Environment(\.islandTextColor) private var textColor
+    @Environment(\.islandHUDContrastingColor) private var hudContrastingColor
 
     var body: some View {
         HStack(spacing: 11) {
             Image(systemName: icon)
                 .font(.system(size: 14, weight: .bold))
-                .foregroundStyle(isEnabled ? .black : .white.opacity(0.55))
+                .foregroundStyle(isEnabled ? hudContrastingColor : textColor.opacity(0.55))
                 .frame(width: 34, height: 34)
-                .background(isEnabled ? .white : .white.opacity(0.08), in: Circle())
+                .background(isEnabled ? hudColor : textColor.opacity(0.08), in: Circle())
             VStack(alignment: .leading, spacing: 2) {
                 Text(title.uppercased())
                     .font(.system(size: 7.5, weight: .bold))
                     .tracking(0.8)
-                    .foregroundStyle(.white.opacity(0.38))
+                    .foregroundStyle(textColor.opacity(0.38))
                 Text(value)
                     .font(.system(size: 12, weight: .bold))
                     .lineLimit(1)
                 Text(detail)
                     .font(.system(size: 8, weight: .medium))
-                    .foregroundStyle(.white.opacity(0.4))
+                    .foregroundStyle(textColor.opacity(0.4))
                     .lineLimit(1)
             }
             Spacer(minLength: 3)
             Image(systemName: "chevron.right")
                 .font(.system(size: 8, weight: .bold))
-                .foregroundStyle(.white.opacity(0.3))
+                .foregroundStyle(textColor.opacity(0.3))
         }
         .padding(12)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
@@ -400,23 +409,25 @@ private struct SystemSliderControl: View {
     let title: String
     let value: Double
     let onChange: (Double) -> Void
+    @Environment(\.islandHUDColor) private var hudColor
+    @Environment(\.islandTextColor) private var textColor
 
     var body: some View {
         VStack(alignment: .leading, spacing: 5) {
             HStack {
                 Image(systemName: icon)
                     .font(.system(size: 13, weight: .bold))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(hudColor)
                 Text(title)
                     .font(.system(size: 9, weight: .bold))
-                    .foregroundStyle(.white.opacity(0.48))
+                    .foregroundStyle(textColor.opacity(0.48))
                 Spacer()
                 Text("\(Int((value * 100).rounded()))%")
                     .font(.system(size: 11, weight: .bold, design: .rounded))
                     .monospacedDigit()
             }
             Slider(value: Binding(get: { value }, set: onChange), in: 0...1)
-                .tint(.white)
+                .tint(hudColor)
                 .controlSize(.mini)
         }
     }
@@ -428,6 +439,7 @@ private struct SystemTile: View {
     let value: String
     let caption: String
     let color: Color
+    @Environment(\.islandTextColor) private var textColor
 
     var body: some View {
         VStack(alignment: .leading, spacing: 9) {
@@ -440,13 +452,13 @@ private struct SystemTile: View {
             Text(title.uppercased())
                 .font(.system(size: 8, weight: .bold))
                 .tracking(1)
-                .foregroundStyle(.white.opacity(0.38))
+                .foregroundStyle(textColor.opacity(0.38))
             Text(value)
                 .font(.system(size: 21, weight: .bold, design: .rounded))
                 .lineLimit(1)
             Text(caption)
                 .font(.system(size: 9, weight: .medium))
-                .foregroundStyle(.white.opacity(0.42))
+                .foregroundStyle(textColor.opacity(0.42))
                 .lineLimit(2)
         }
         .padding(16)
@@ -457,9 +469,12 @@ private struct SystemTile: View {
 
 private struct BatteryPowerTile: View {
     @EnvironmentObject private var system: SystemStatusService
+    @Environment(\.islandHUDColor) private var hudColor
+    @Environment(\.islandTextColor) private var textColor
+    @Environment(\.islandHUDContrastingColor) private var hudContrastingColor
 
     private var color: Color {
-        system.isCharging ? IslandPalette.primary : IslandPalette.orange
+        hudColor
     }
 
     var body: some View {
@@ -483,13 +498,13 @@ private struct BatteryPowerTile: View {
             Text("PİL")
                 .font(.system(size: 8, weight: .bold))
                 .tracking(1)
-                .foregroundStyle(.white.opacity(0.38))
+                .foregroundStyle(textColor.opacity(0.38))
             Text("\(system.batteryPercent)%")
                 .font(.system(size: 21, weight: .bold, design: .rounded))
                 .lineLimit(1)
             Text(system.isCharging ? "Güç adaptörüne bağlı" : "Pille çalışıyor")
                 .font(.system(size: 9, weight: .medium))
-                .foregroundStyle(.white.opacity(0.42))
+                .foregroundStyle(textColor.opacity(0.42))
                 .lineLimit(1)
 
             Button {
@@ -500,13 +515,13 @@ private struct BatteryPowerTile: View {
                     Text("Düşük Güç")
                     Spacer(minLength: 2)
                     Text(system.lowPowerModeEnabled ? "Açık" : "Kapalı")
-                        .foregroundStyle(system.lowPowerModeEnabled ? .black.opacity(0.58) : .white.opacity(0.42))
+                        .foregroundStyle(system.lowPowerModeEnabled ? hudContrastingColor.opacity(0.62) : textColor.opacity(0.42))
                 }
                 .font(.system(size: 9, weight: .bold))
-                .foregroundStyle(system.lowPowerModeEnabled ? .black : .white)
+                .foregroundStyle(system.lowPowerModeEnabled ? hudContrastingColor : textColor)
                 .padding(.horizontal, 10)
                 .padding(.vertical, 8)
-                .background(system.lowPowerModeEnabled ? .white : .white.opacity(0.09), in: Capsule())
+                .background(system.lowPowerModeEnabled ? hudColor : textColor.opacity(0.09), in: Capsule())
             }
             .buttonStyle(ScaleButtonStyle())
             .disabled(system.isChangingLowPowerMode)
@@ -525,48 +540,68 @@ private struct BatteryPowerTile: View {
     }
 }
 
-private func panelHeader(icon: String, title: String, isOn: Binding<Bool>) -> some View {
-    HStack(spacing: 10) {
-        Image(systemName: icon)
-            .font(.system(size: 14, weight: .bold))
-            .frame(width: 31, height: 31)
-            .background(.white, in: Circle())
-            .foregroundStyle(.black)
-        Text(title)
-            .font(.system(size: 14, weight: .bold))
-        Spacer()
-        Toggle("", isOn: isOn)
-            .labelsHidden()
-            .toggleStyle(.switch)
-            .tint(.white)
+private struct PanelHeader: View {
+    let icon: String
+    let title: String
+    let isOn: Binding<Bool>
+    @Environment(\.islandHUDColor) private var hudColor
+    @Environment(\.islandHUDContrastingColor) private var hudContrastingColor
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Image(systemName: icon)
+                .font(.system(size: 14, weight: .bold))
+                .frame(width: 31, height: 31)
+                .background(hudColor, in: Circle())
+                .foregroundStyle(hudContrastingColor)
+            Text(title)
+                .font(.system(size: 14, weight: .bold))
+            Spacer()
+            Toggle("", isOn: isOn)
+                .labelsHidden()
+                .toggleStyle(.switch)
+                .tint(hudColor)
+        }
     }
 }
 
-private func emptyState(icon: String, text: String) -> some View {
-    VStack(spacing: 10) {
-        Image(systemName: icon)
-            .font(.system(size: 24, weight: .semibold))
-            .foregroundStyle(.secondary)
-        Text(text)
-            .font(.system(size: 10, weight: .medium))
-            .foregroundStyle(.secondary)
-            .multilineTextAlignment(.center)
+private struct EmptyState: View {
+    let icon: String
+    let text: String
+    @Environment(\.islandTextColor) private var textColor
+
+    var body: some View {
+        VStack(spacing: 10) {
+            Image(systemName: icon)
+                .font(.system(size: 24, weight: .semibold))
+                .foregroundStyle(textColor.opacity(0.55))
+            Text(text)
+                .font(.system(size: 10, weight: .medium))
+                .foregroundStyle(textColor.opacity(0.55))
+                .multilineTextAlignment(.center)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
-    .frame(maxWidth: .infinity, maxHeight: .infinity)
 }
 
-private func panelFooter(refresh: @escaping () -> Void, settingsURL: String) -> some View {
-    HStack {
-        Button(action: refresh) {
-            Label("Yenile", systemImage: "arrow.clockwise")
+private struct PanelFooter: View {
+    let refresh: () -> Void
+    let settingsURL: String
+    @Environment(\.islandTextColor) private var textColor
+
+    var body: some View {
+        HStack {
+            Button(action: refresh) {
+                Label("Yenile", systemImage: "arrow.clockwise")
+            }
+            Spacer()
+            Button("Ayarlar…") {
+                guard let url = URL(string: settingsURL) else { return }
+                NSWorkspace.shared.open(url)
+            }
         }
-        Spacer()
-        Button("Ayarlar…") {
-            guard let url = URL(string: settingsURL) else { return }
-            NSWorkspace.shared.open(url)
-        }
+        .font(.system(size: 9, weight: .semibold))
+        .buttonStyle(.plain)
+        .foregroundStyle(textColor.opacity(0.55))
     }
-    .font(.system(size: 9, weight: .semibold))
-    .buttonStyle(.plain)
-    .foregroundStyle(.secondary)
 }
