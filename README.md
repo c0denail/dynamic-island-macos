@@ -8,7 +8,7 @@ MacBook çentiğiyle fiziksel olarak hizalanan, SwiftUI ile yazılmış yerel bi
 - Chrome/YouTube, Safari, Arc, Music ve Spotify dahil macOS “Şu An Çalıyor” oturumundaki medyanın gerçek kapağını, geçen/kalan süresini ve canlı ilerleme çizgisini gösterir.
 - Sistem genelinde oynat/duraklat, önceki/sonraki parça, ±15 saniye sarma ve ilerleme çizgisinden konum değiştirme denetimleri sunar.
 - Medya etkinken adanın herhangi bir noktasına tıklamak doğrudan Medya görünümünü, boşta tıklamak genel menüyü açar; fiziksel çentiğin merkezi dahil tüm ada yüzeyi anında tepki verir ve ada dışına tıklamak geniş görünümü kapatır.
-- Açılma, küçülme ve etkinlik geçişleri sabit 60 FPS zaman tabanlı animasyonla çalışır; medya ve bildirim sorguları geçiş sırasında ana iş parçacığını bloke etmez.
+- Açılma, küçülme, maskot, waveform ve canlı ilerleme animasyonları VSync ile ekranın doğal yenileme hızında, desteklenen ProMotion ekranlarda 120 FPS çalışır; 60 Hz ekranlarda doğal olarak 60 FPS gösterilir.
 - macOS bildirim banner'larını uygulama simgesi, başlık ve içerikle Dynamic Island'da gösterir; art arda gelen bildirimleri sıraya alır ve adaya tıklanınca gerçek bildirim eylemini veya kaynak uygulamayı açar.
 - Geri sayım ve kronometreyi doğrudan macOS Saat uygulamasında başlatır, duraklatır, sürdürür ve sıfırlar.
 - macOS Saat içinde veya Dynamic Island’dan başlatılan sayaç ve kronometreleri `mobiletimerd` durumundan canlı gösterir; Clock tek doğruluk kaynağıdır.
@@ -18,7 +18,7 @@ MacBook çentiğiyle fiziksel olarak hizalanan, SwiftUI ile yazılmış yerel bi
 - Özet görünümündeki Wi‑Fi durumuna tıklamak doğrudan Sistem bölümündeki Wi‑Fi bağlantı panelini açar.
 - Özet görünümünde yaklaşan etkinliği gösteren Takvim kartı bulunur; karta tıklanınca aylık takvim ve yaklaşan etkinlikler Wi‑Fi paneli gibi genişler.
 - Ayarlar’daki Kişiselleştirme bölümünden HUD/ilerleme çubuklarının ve uygulama yazılarının renkleri değiştirilebilir.
-- Seçilebilir Orbit, Neko ve Boo maskotları bir ipe bağlıymış gibi adanın yalnızca sol, alt ve sağ kenarlarında sürekli dolaşır; maskot, hız ve aç/kapat seçeneği Ayarlar’dan değiştirilebilir.
+- Codex’in sıcak piksel-maskot hissinden esinlenen fakat tamamen özgün Byte, Ember, Nova, Moss ve Patch arasından seçim yapılabilir. Maskotların gerçek opak ayak noktası adaya sabitlenir; sol, alt ve sağ kenarlarda uzun süre yürüdükten sonra aniden yuvarlanır, belirgin bir ip sarkıtıp sallanır ve aralarda kendi küçük hareketlerini yapar. Maskot, hız ve aç/kapat seçeneği Ayarlar’dan değiştirilebilir.
 - Pil kartındaki Düşük Güç düğmesi macOS güç tasarrufu modunu açıp kapatır; pil, şarj, ağ ve sistem çıkış sesi durumunu gösterir.
 - Tüm masaüstlerinde ve tam ekran uygulamaların üzerinde çalışır.
 - Menü çubuğu simgesi ve `⌥ Boşluk` global kısayolu içerir.
@@ -55,7 +55,7 @@ Başka bir Mac'e kopyalanabilen DMG paketini oluşturmak için:
 make dmg
 ```
 
-Paket `dist/Dynamic-Island-for-macOS-v1.0.5.dmg` konumuna yazılır. DMG içindeki uygulama **Applications** kısayoluna sürüklenir. Paket Developer ID ile notarize edilmediğinden başka bir Mac'te ilk açılışta **Sistem Ayarları → Gizlilik ve Güvenlik → Yine de Aç** adımı gerekebilir. Paketleme betiği `CODE_SIGN_IDENTITY` verilmişse onu, aksi halde bu Mac'teki Apple Development kimliğini kullanır; kimlik bulunamazsa ad-hoc imzaya geri döner. Kararlı bir imza, Erişilebilirlik izninin güncellemelerde aynı uygulamayla eşleşmesini sağlar.
+Paket `dist/Dynamic-Island-for-macOS-v1.0.7.dmg` konumuna yazılır. DMG içindeki uygulama **Applications** kısayoluna sürüklenir. Paket Developer ID ile notarize edilmediğinden başka bir Mac'te ilk açılışta **Sistem Ayarları → Gizlilik ve Güvenlik → Yine de Aç** adımı gerekebilir. Paketleme betiği `CODE_SIGN_IDENTITY` verilmişse onu, aksi halde bu Mac'teki Apple Development kimliğini kullanır; kimlik bulunamazsa ad-hoc imzaya geri döner. Kararlı bir imza, Erişilebilirlik izninin güncellemelerde aynı uygulamayla eşleşmesini sağlar.
 
 Temiz bir kurulumun ilk çalıştırmasında Dynamic Island; Bildirim, Konum/Wi‑Fi, Bluetooth, Takvim, Medya Otomasyonu ve Erişilebilirlik izinlerini sırayla isteyen kurulum penceresini gösterir.
 

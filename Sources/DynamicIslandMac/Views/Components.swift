@@ -1,5 +1,62 @@
 import SwiftUI
 
+/// Re-renders only the small media progress subtree at display cadence. The
+/// service can keep reconciling system state at its inexpensive 0.8 s poll,
+/// while elapsed time and the bar advance smoothly from the local clock.
+struct LiveMediaProgress<Content: View>: View {
+    @EnvironmentObject private var media: MediaService
+    private let content: (TimeInterval, TimeInterval, Double) -> Content
+
+    init(@ViewBuilder content: @escaping (TimeInterval, TimeInterval, Double) -> Content) {
+        self.content = content
+    }
+
+    var body: some View {
+        TimelineView(
+            .animation(
+                minimumInterval: IslandAnimationCadence.minimumInterval,
+                paused: !media.isPlaying || media.duration <= 0
+            )
+        ) { _ in
+            content(media.displayedElapsed, media.remaining, media.progress)
+        }
+    }
+}
+
+/// Uses the live dates already carried by Clock snapshots to animate the
+/// visible countdown/stopwatch at up to 120 Hz without polling Clock 120 times
+/// per second. Polling remains responsible only for external state changes.
+struct LiveClockProgress<Content: View>: View {
+    @EnvironmentObject private var clockTimer: ClockTimerService
+    let mode: TimerMode
+    let fallbackDuration: TimeInterval
+    private let content: (TimeInterval, Double?) -> Content
+
+    init(
+        mode: TimerMode,
+        fallbackDuration: TimeInterval,
+        @ViewBuilder content: @escaping (TimeInterval, Double?) -> Content
+    ) {
+        self.mode = mode
+        self.fallbackDuration = fallbackDuration
+        self.content = content
+    }
+
+    var body: some View {
+        TimelineView(
+            .animation(
+                minimumInterval: IslandAnimationCadence.minimumInterval,
+                paused: clockTimer.state(for: mode) != .running
+            )
+        ) { _ in
+            content(
+                clockTimer.displayedTime(for: mode, fallbackDuration: fallbackDuration),
+                clockTimer.progress(for: mode)
+            )
+        }
+    }
+}
+
 struct ArtworkGlyph: View {
     let size: CGFloat
     var url: URL? = nil
@@ -65,7 +122,7 @@ struct MiniWaveform: View {
     let color: Color
 
     var body: some View {
-        TimelineView(.animation(minimumInterval: isActive ? 1.0 / 60.0 : 1)) { context in
+        TimelineView(.animation(minimumInterval: isActive ? IslandAnimationCadence.minimumInterval : 1)) { context in
             let phase = context.date.timeIntervalSinceReferenceDate
             HStack(alignment: .center, spacing: 2) {
                 ForEach(0..<9, id: \.self) { index in
@@ -96,7 +153,6 @@ struct ProgressRing<Content: View>: View {
                     .trim(from: 0, to: max(0.015, 1 - progress))
                     .stroke(color, style: StrokeStyle(lineWidth: max(3, size * 0.055), lineCap: .round))
                     .rotationEffect(.degrees(-90))
-                    .animation(.linear(duration: 0.1), value: progress)
             } else {
                 Circle()
                     .trim(from: 0.04, to: 0.78)

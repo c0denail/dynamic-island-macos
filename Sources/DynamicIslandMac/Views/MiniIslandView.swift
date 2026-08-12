@@ -49,10 +49,12 @@ struct MiniIslandView: View {
             MiniWaveform(isActive: media.isPlaying, color: hudColor)
                 .frame(width: 28, height: 18)
         case .timer:
-            Text(clockTimer.displayedTime(for: activityMode, fallbackDuration: timer.duration).islandClock)
-                .font(.system(size: 11, weight: .bold, design: .rounded))
-                .monospacedDigit()
-                .foregroundStyle(textColor)
+            LiveClockProgress(mode: activityMode, fallbackDuration: timer.duration) { displayedTime, _ in
+                Text(displayedTime.islandClock)
+                    .font(.system(size: 11, weight: .bold, design: .rounded))
+                    .monospacedDigit()
+                    .foregroundStyle(textColor)
+            }
         case let .volume(value, _):
             Text("\(Int((value * 100).rounded()))%")
                 .font(.system(size: 10, weight: .bold, design: .rounded))

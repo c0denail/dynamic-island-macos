@@ -14,6 +14,7 @@ x86_scratch="$universal_dir/swift-x86_64"
 mini_arm_dir="build/mediaremote-mini-arm64"
 mini_x86_dir="build/mediaremote-mini-x86_64"
 preferred_development_identity="AE775513E31FC2599BBFB8D7747E690DE558FC90"
+pet_asset_names=(byte ember nova moss patch)
 
 if [[ -n "${CODE_SIGN_IDENTITY:-}" ]]; then
     code_sign_identity="$CODE_SIGN_IDENTITY"
@@ -42,13 +43,22 @@ if [[ "$(git -C "$adapter_dir" rev-parse HEAD)" != "$adapter_commit" ]]; then
     git -C "$adapter_dir" fetch --quiet origin "$adapter_commit"
     git -C "$adapter_dir" checkout --quiet "$adapter_commit"
 fi
-make -s -B -C "$adapter_dir" MINI_BUILD_DIR="$mini_arm_dir" CFLAGS="-O3 -arch arm64" "$mini_arm_dir/MediaRemoteMini.dylib"
-make -s -B -C "$adapter_dir" MINI_BUILD_DIR="$mini_x86_dir" CFLAGS="-O3 -arch x86_64" "$mini_x86_dir/MediaRemoteMini.dylib"
+make -s -B -C "$adapter_dir" \
+    MACOSX_DEPLOYMENT_TARGET=14.0 \
+    MINI_BUILD_DIR="$mini_arm_dir" \
+    CFLAGS="-O3 -arch arm64 -mmacosx-version-min=14.0" \
+    "$mini_arm_dir/MediaRemoteMini.dylib"
+make -s -B -C "$adapter_dir" \
+    MACOSX_DEPLOYMENT_TARGET=14.0 \
+    MINI_BUILD_DIR="$mini_x86_dir" \
+    CFLAGS="-O3 -arch x86_64 -mmacosx-version-min=14.0" \
+    "$mini_x86_dir/MediaRemoteMini.dylib"
 
 rm -rf "$app_dir"
 mkdir -p \
     "$app_dir/Contents/MacOS" \
     "$app_dir/Contents/Resources/NowPlaying" \
+    "$app_dir/Contents/Resources/Pets" \
     "$app_dir/Contents/Helpers" \
     "$app_dir/Contents/Library/PrivilegedHelperTools" \
     "$app_dir/Contents/Library/LaunchDaemons"
@@ -70,10 +80,18 @@ lipo -create \
     "$adapter_dir/$mini_x86_dir/MediaRemoteMini.dylib" \
     -output "$app_dir/Contents/Resources/NowPlaying/MediaRemoteMini.dylib"
 ditto "$project_dir/Resources/MediaRemoteMini-LICENSE.txt" "$app_dir/Contents/Resources/NowPlaying/LICENSE.txt"
-clang -arch arm64 -fobjc-arc -O2 -framework Cocoa \
+for pet_asset_name in "${pet_asset_names[@]}"; do
+    pet_asset_path="$project_dir/Resources/Pets/$pet_asset_name.png"
+    if [[ ! -f "$pet_asset_path" ]]; then
+        echo "Missing required pet asset: $pet_asset_path" >&2
+        exit 1
+    fi
+    ditto "$pet_asset_path" "$app_dir/Contents/Resources/Pets/$pet_asset_name.png"
+done
+clang -arch arm64 -mmacosx-version-min=14.0 -fobjc-arc -O2 -framework Cocoa \
     "$project_dir/Resources/NowPlayingControl.m" \
     -o "$universal_dir/NowPlayingControl-arm64"
-clang -arch x86_64 -fobjc-arc -O2 -framework Cocoa \
+clang -arch x86_64 -mmacosx-version-min=14.0 -fobjc-arc -O2 -framework Cocoa \
     "$project_dir/Resources/NowPlayingControl.m" \
     -o "$universal_dir/NowPlayingControl-x86_64"
 lipo -create \

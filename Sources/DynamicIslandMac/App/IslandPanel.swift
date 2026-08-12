@@ -1,5 +1,6 @@
 import AppKit
 import Combine
+import QuartzCore
 import SwiftUI
 
 final class IslandPanel: NSPanel {
@@ -37,7 +38,7 @@ final class IslandPanelCoordinator: NSObject {
     private let petLayout = IslandPetLayout()
     private var cancellables = Set<AnyCancellable>()
     private var screenObserver: NSObjectProtocol?
-    private var frameAnimationTimer: Timer?
+    private var frameAnimationDisplayLink: CADisplayLink?
     private var frameAnimation: FrameAnimation?
     private var outsideGlobalMonitor: Any?
     private var outsideLocalMonitor: Any?
@@ -51,7 +52,7 @@ final class IslandPanelCoordinator: NSObject {
             defer: false
         )
         petPanel = NSPanel(
-            contentRect: NSRect(origin: .zero, size: CGSize(width: 190 + 88, height: 38 + 56)),
+            contentRect: NSRect(origin: .zero, size: CGSize(width: 190 + 136, height: 38 + 68)),
             styleMask: [.borderless, .nonactivatingPanel, .fullSizeContentView],
             backing: .buffered,
             defer: false
@@ -125,7 +126,7 @@ final class IslandPanelCoordinator: NSObject {
     }
 
     deinit {
-        frameAnimationTimer?.invalidate()
+        frameAnimationDisplayLink?.invalidate()
         if let screenObserver { NotificationCenter.default.removeObserver(screenObserver) }
         if let outsideGlobalMonitor { NSEvent.removeMonitor(outsideGlobalMonitor) }
         if let outsideLocalMonitor { NSEvent.removeMonitor(outsideLocalMonitor) }
@@ -195,8 +196,8 @@ final class IslandPanelCoordinator: NSObject {
         let petFrame = petFrame(around: frame)
 
         guard animated, panel.isVisible else {
-            frameAnimationTimer?.invalidate()
-            frameAnimationTimer = nil
+            frameAnimationDisplayLink?.invalidate()
+            frameAnimationDisplayLink = nil
             frameAnimation = nil
             panel.setFrame(frame, display: true, animate: false)
             petPanel.setFrame(petFrame, display: true, animate: false)
@@ -220,8 +221,8 @@ final class IslandPanelCoordinator: NSObject {
         notchHeight: CGFloat,
         duration: TimeInterval
     ) {
-        frameAnimationTimer?.invalidate()
-        frameAnimationTimer = nil
+        frameAnimationDisplayLink?.invalidate()
+        frameAnimationDisplayLink = nil
         frameAnimation = nil
         let startFrame = panel.frame
         guard startFrame != targetFrame else {
@@ -243,33 +244,40 @@ final class IslandPanelCoordinator: NSObject {
             duration: max(0.01, duration)
         )
 
-        // A stable 60 Hz cadence is smoother than asking the main run loop for
-        // 120 forced SwiftUI redraws. Time-based interpolation also keeps the
-        // motion correct when macOS occasionally coalesces a timer tick.
-        let timer = Timer(
-            timeInterval: 1.0 / 60.0,
+        // NSWindow's display link follows the panel between displays and fires
+        // on vsync. ProMotion panels can therefore present at 120 Hz without a
+        // free-running timer competing with AppKit's compositor; 60 Hz panels
+        // naturally keep their native cadence.
+        let displayLink = panel.displayLink(
             target: self,
-            selector: #selector(advanceFrameAnimation(_:)),
-            userInfo: nil,
-            repeats: true
+            selector: #selector(advanceFrameAnimation(_:))
         )
-
-        timer.tolerance = 1.0 / 600.0
-        frameAnimationTimer = timer
-        RunLoop.main.add(timer, forMode: .common)
+        let displayMaximum = targetScreen?.maximumFramesPerSecond
+            ?? panel.screen?.maximumFramesPerSecond
+            ?? 60
+        let framesPerSecond = Float(
+            IslandAnimationCadence.framesPerSecond(displayMaximum: displayMaximum)
+        )
+        displayLink.preferredFrameRateRange = CAFrameRateRange(
+            minimum: framesPerSecond,
+            maximum: framesPerSecond,
+            preferred: framesPerSecond
+        )
+        frameAnimationDisplayLink = displayLink
+        displayLink.add(to: .main, forMode: .common)
     }
 
     private func prepareForPresentationAnimation() {
-        frameAnimationTimer?.invalidate()
-        frameAnimationTimer = nil
+        frameAnimationDisplayLink?.invalidate()
+        frameAnimationDisplayLink = nil
         frameAnimation = nil
         petLayout.setSuspended(true)
         controller.setPresentationAnimating(true)
     }
 
-    @objc private func advanceFrameAnimation(_ timer: Timer) {
+    @objc private func advanceFrameAnimation(_ displayLink: CADisplayLink) {
         guard let animation = frameAnimation else {
-            timer.invalidate()
+            displayLink.invalidate()
             return
         }
 
@@ -294,8 +302,8 @@ final class IslandPanelCoordinator: NSObject {
         petPanel.setFrame(petFrame(around: frame), display: false, animate: false)
 
         if progress >= 1 {
-            timer.invalidate()
-            frameAnimationTimer = nil
+            displayLink.invalidate()
+            frameAnimationDisplayLink = nil
             frameAnimation = nil
             panel.setFrame(targetFrame, display: true, animate: false)
             petPanel.setFrame(petFrame(around: targetFrame), display: true, animate: false)
@@ -310,8 +318,10 @@ final class IslandPanelCoordinator: NSObject {
     }
 
     private func petFrame(around islandFrame: NSRect) -> NSRect {
-        let horizontalMargin: CGFloat = 44
-        let bottomMargin: CGFloat = 52
+        // Accommodate the 34 pt artwork after rope-swing offset, rotation and
+        // antialiased shadow pixels without clipping at either side.
+        let horizontalMargin: CGFloat = 68
+        let bottomMargin: CGFloat = 68
         return NSRect(
             x: islandFrame.minX - horizontalMargin,
             y: islandFrame.minY - bottomMargin,
@@ -321,8 +331,8 @@ final class IslandPanelCoordinator: NSObject {
     }
 
     private func stopPanelAnimation() {
-        frameAnimationTimer?.invalidate()
-        frameAnimationTimer = nil
+        frameAnimationDisplayLink?.invalidate()
+        frameAnimationDisplayLink = nil
         frameAnimation = nil
         petLayout.setSuspended(false)
         controller.setPresentationAnimating(false)

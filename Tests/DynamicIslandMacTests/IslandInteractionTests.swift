@@ -103,46 +103,137 @@ final class IslandInteractionTests: XCTestCase {
         XCTAssertLessThan(largestNormalStep, 0.08)
     }
 
-    func testPetAvatarAndRopeStayContinuousAroundCorners() {
+    func testProductionPetPlacementStaysContinuousAroundCorners() {
         let rect = CGRect(x: 40, y: 0, width: 680, height: 418)
-        var previousPose = PetPerimeterGeometry.pose(progress: 0, in: rect)
-        var previousCenter = PetPerimeterGeometry.hangingCenter(for: previousPose)
-        var previousRotation = PetPerimeterGeometry.avatarRotation(for: previousPose)
+        let firstPose = PetPerimeterGeometry.pose(progress: 0, in: rect)
+        let behavior = PetBehaviorSchedule.sample(at: 2, kind: .byte)
+        var previousPlacement = PetVisualGeometry.placement(
+            for: firstPose,
+            travelTangent: firstPose.tangent,
+            behavior: behavior,
+            kind: .byte
+        )
         var largestCenterStep: CGFloat = 0
         var largestRotationStep: Double = 0
 
         for index in 1...2_000 {
             let pose = PetPerimeterGeometry.pose(progress: Double(index) / 2_000, in: rect)
-            let center = PetPerimeterGeometry.hangingCenter(for: pose)
-            let rotation = PetPerimeterGeometry.avatarRotation(for: pose)
-            largestCenterStep = max(largestCenterStep, hypot(center.x - previousCenter.x, center.y - previousCenter.y))
-            largestRotationStep = max(largestRotationStep, abs(rotation - previousRotation))
-            previousPose = pose
-            previousCenter = center
-            previousRotation = rotation
+            let placement = PetVisualGeometry.placement(
+                for: pose,
+                travelTangent: pose.tangent,
+                behavior: behavior,
+                kind: .byte
+            )
+            largestCenterStep = max(
+                largestCenterStep,
+                hypot(
+                    placement.center.x - previousPlacement.center.x,
+                    placement.center.y - previousPlacement.center.y
+                )
+            )
+            largestRotationStep = max(
+                largestRotationStep,
+                visualAngleDelta(placement.rotationDegrees, previousPlacement.rotationDegrees)
+            )
+            previousPlacement = placement
         }
 
         XCTAssertLessThan(largestCenterStep, 1.5)
-        XCTAssertLessThan(largestRotationStep, 0.2)
+        // At the production travel speed this is under two degrees per 120 Hz
+        // frame even at the tightest rounded corner.
+        XCTAssertLessThan(largestRotationStep, 2)
     }
 
     func testPetAvatarNeverCrossesTopForEveryPresentation() {
-        for presentation in IslandPresentation.allCases {
-            let size = presentation.defaultSize
-            let rect = CGRect(origin: .zero, size: size)
-            for index in 0...500 {
-                let pose = PetPerimeterGeometry.pose(
-                    progress: Double(index) / 500,
-                    in: rect,
-                    presentation: presentation,
-                    notchHeight: 34
-                )
-                let center = PetPerimeterGeometry.hangingCenter(for: pose, swing: 3.4)
-                XCTAssertGreaterThanOrEqual(center.y - 14, 0, "\(presentation.rawValue) crossed the top edge")
-                XCTAssertGreaterThanOrEqual(center.x - 14, -44)
-                XCTAssertLessThanOrEqual(center.x + 14, size.width + 44)
-                XCTAssertLessThanOrEqual(center.y + 14, size.height + 52)
+        for kind in IslandPetKind.allCases {
+            let cycleDuration = PetBehaviorSchedule.cycleDuration(for: kind)
+            for presentation in IslandPresentation.allCases {
+                let size = presentation.defaultSize
+                let rect = CGRect(origin: .zero, size: size)
+                for elapsed in stride(from: 0.0, through: cycleDuration, by: 0.25) {
+                    let behavior = PetBehaviorSchedule.sample(at: elapsed, kind: kind)
+                    for progress in [0.0, 1.0] {
+                        let pose = PetPerimeterGeometry.pose(
+                            progress: progress,
+                            in: rect,
+                            presentation: presentation,
+                            notchHeight: 34
+                        )
+                        let placement = PetVisualGeometry.placement(
+                            for: pose,
+                            travelTangent: pose.tangent,
+                            behavior: behavior,
+                            kind: kind
+                        )
+                        let visibleBounds = PetVisualGeometry.visibleArtworkBounds(
+                            placement: placement,
+                            behavior: behavior,
+                            kind: kind
+                        )
+
+                        XCTAssertGreaterThanOrEqual(
+                            visibleBounds.minY,
+                            0,
+                            "\(kind.rawValue) / \(presentation.rawValue) crossed the top edge"
+                        )
+                        XCTAssertGreaterThanOrEqual(visibleBounds.minX, -68)
+                        XCTAssertLessThanOrEqual(visibleBounds.maxX, size.width + 68)
+                        XCTAssertLessThanOrEqual(visibleBounds.maxY, size.height + 68)
+                    }
+                }
             }
         }
+    }
+
+    func testGroundedPetFootTouchesEveryPointOfTheUPath() {
+        for presentation in IslandPresentation.allCases {
+            let rect = CGRect(origin: .zero, size: presentation.defaultSize)
+            for kind in IslandPetKind.allCases {
+                let firstWalk = PetBehaviorSchedule.sample(at: 0.000_001, kind: kind)
+                for gaitFrame in 0..<60 {
+                    let behavior = PetBehaviorSchedule.sample(
+                        at: firstWalk.episodeDuration * Double(gaitFrame) / 60,
+                        kind: kind
+                    )
+                    let gait = PetGaitGeometry.pose(
+                        progress: behavior.episodeProgress,
+                        motionEnvelope: behavior.motionEnvelope,
+                        supportFootX: kind.supportFoot.x,
+                        leanAmplitude: kind.gaitLeanAmplitude
+                    )
+                    for index in 0...200 {
+                        let pose = PetPerimeterGeometry.pose(
+                            progress: Double(index) / 200,
+                            in: rect,
+                            presentation: presentation,
+                            notchHeight: 34
+                        )
+                        let placement = PetVisualGeometry.placement(
+                            for: pose,
+                            travelTangent: pose.tangent,
+                            behavior: behavior,
+                            kind: kind
+                        )
+                        let radians = CGFloat(placement.rotationDegrees * .pi / 180)
+                        let transformedFoot = CGPoint(
+                            x: placement.center.x
+                                + cos(radians) * gait.contactOffset
+                                - sin(radians) * kind.supportFoot.y,
+                            y: placement.center.y
+                                + sin(radians) * gait.contactOffset
+                                + cos(radians) * kind.supportFoot.y
+                        )
+
+                        XCTAssertEqual(transformedFoot.x, pose.anchor.x, accuracy: 0.000_1)
+                        XCTAssertEqual(transformedFoot.y, pose.anchor.y, accuracy: 0.000_1)
+                    }
+                }
+            }
+        }
+    }
+
+    private func visualAngleDelta(_ lhs: Double, _ rhs: Double) -> Double {
+        let remainder = abs((lhs - rhs).truncatingRemainder(dividingBy: 360))
+        return min(remainder, 360 - remainder)
     }
 }

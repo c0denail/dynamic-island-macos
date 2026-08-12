@@ -94,24 +94,28 @@ struct CompactIslandView: View {
     private var rightWing: some View {
         switch island.compactActivity {
         case .media:
-            VStack(alignment: .trailing, spacing: 4) {
-                HStack(spacing: 5) {
-                    Text(media.displayedElapsed.islandClock)
-                    Text("−\(media.remaining.islandClock)")
-                        .foregroundStyle(textColor.opacity(0.42))
-                }
-                .font(.system(size: 7.5, weight: .bold, design: .monospaced))
-                .monospacedDigit()
+            LiveMediaProgress { elapsed, remaining, progress in
+                VStack(alignment: .trailing, spacing: 4) {
+                    HStack(spacing: 5) {
+                        Text(elapsed.islandClock)
+                        Text("−\(remaining.islandClock)")
+                            .foregroundStyle(textColor.opacity(0.42))
+                    }
+                    .font(.system(size: 7.5, weight: .bold, design: .monospaced))
+                    .monospacedDigit()
 
-                whiteProgress(media.progress)
+                    whiteProgress(progress)
+                }
             }
         case .timer:
-            VStack(alignment: .trailing, spacing: 4) {
-                Text(clockTimer.displayedTime(for: activityMode, fallbackDuration: timer.duration).islandClock)
-                    .font(.system(size: 13, weight: .bold, design: .rounded))
-                    .monospacedDigit()
-                    .contentTransition(.numericText())
-                whiteProgress(clockTimer.progress(for: activityMode) ?? 1)
+            LiveClockProgress(mode: activityMode, fallbackDuration: timer.duration) { displayedTime, progress in
+                VStack(alignment: .trailing, spacing: 4) {
+                    Text(displayedTime.islandClock)
+                        .font(.system(size: 13, weight: .bold, design: .rounded))
+                        .monospacedDigit()
+                        .contentTransition(.numericText())
+                    whiteProgress(progress ?? 1)
+                }
             }
         case let .volume(value, isMuted):
             VStack(alignment: .trailing, spacing: 4) {

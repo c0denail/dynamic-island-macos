@@ -10,7 +10,7 @@ struct PreferencesView: View {
     @AppStorage("showBrightnessHUD") private var showBrightnessHUD = true
     @AppStorage("showNotificationHUD") private var showNotificationHUD = true
     @AppStorage("islandPetEnabled") private var isPetEnabled = true
-    @AppStorage("islandPetKind") private var selectedPet = IslandPetKind.orbit.rawValue
+    @AppStorage("islandPetKind") private var selectedPet = IslandPetKind.byte.rawValue
     @AppStorage("islandPetSpeed") private var petSpeed = 1.0
     @State private var loginError: String?
 
@@ -71,7 +71,7 @@ struct PreferencesView: View {
                     Picker("Maskot", selection: $selectedPet) {
                         ForEach(IslandPetKind.allCases) { pet in
                             HStack {
-                                IslandPetAvatar(kind: pet, gait: 0.7, horizontalDirection: 1)
+                                IslandPetAvatar(kind: pet, behavior: .idle)
                                     .frame(width: 26, height: 26)
                                 Text(pet.title)
                             }
@@ -81,18 +81,17 @@ struct PreferencesView: View {
 
                     HStack(spacing: 12) {
                         IslandPetAvatar(
-                            kind: IslandPetKind(rawValue: selectedPet) ?? .orbit,
-                            gait: Date.now.timeIntervalSinceReferenceDate,
-                            horizontalDirection: 1
+                            kind: IslandPetKind.resolved(selectedPet),
+                            behavior: .idle
                         )
                         .frame(width: 32, height: 32)
                         .padding(5)
                         .background(.black, in: RoundedRectangle(cornerRadius: 11, style: .continuous))
 
                         VStack(alignment: .leading, spacing: 3) {
-                            Text((IslandPetKind(rawValue: selectedPet) ?? .orbit).title)
+                            Text(IslandPetKind.resolved(selectedPet).title)
                                 .font(.system(size: 11, weight: .bold))
-                            Text((IslandPetKind(rawValue: selectedPet) ?? .orbit).subtitle)
+                            Text(IslandPetKind.resolved(selectedPet).subtitle)
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
@@ -107,7 +106,7 @@ struct PreferencesView: View {
                     }
                 }
 
-                Text("Maskot yalnızca adanın sol, alt ve sağ kenarlarında dolaşır; fiziksel çentiğin üstüne çıkmaz.")
+                Text("Maskot yürür, yuvarlanır, zıplar ve bazen ipe tutunup sallanır; yalnızca adanın sol, alt ve sağ kenarlarında dolaşır.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -145,13 +144,19 @@ struct PreferencesView: View {
                 HStack {
                     Text("Dynamic Island for macOS")
                     Spacer()
-                    Text(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0.5")
+                    Text(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0.7")
                         .foregroundStyle(.secondary)
                 }
             }
         }
         .formStyle(.grouped)
         .frame(width: 540, height: 680)
+        .onAppear {
+            let resolvedPet = IslandPetKind.resolved(selectedPet).rawValue
+            if selectedPet != resolvedPet {
+                selectedPet = resolvedPet
+            }
+        }
     }
 
     private var hudColor: Binding<Color> {

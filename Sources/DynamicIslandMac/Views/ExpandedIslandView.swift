@@ -146,27 +146,29 @@ private struct OverviewSection: View {
                 Button {
                     island.open(.timer)
                 } label: {
-                    HStack(spacing: 10) {
-                        ProgressRing(progress: clockTimer.progress(for: activityMode), color: timerColor, size: 39) {
-                            Image(systemName: activityMode == .stopwatch ? "stopwatch.fill" : "timer")
-                                .font(.system(size: 12, weight: .bold))
-                                .foregroundStyle(timerColor)
-                        }
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(activityMode.rawValue)
+                    LiveClockProgress(mode: activityMode, fallbackDuration: timer.duration) { displayedTime, progress in
+                        HStack(spacing: 10) {
+                            ProgressRing(progress: progress, color: timerColor, size: 39) {
+                                Image(systemName: activityMode == .stopwatch ? "stopwatch.fill" : "timer")
+                                    .font(.system(size: 12, weight: .bold))
+                                    .foregroundStyle(timerColor)
+                            }
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(activityMode.rawValue)
+                                    .font(.system(size: 9, weight: .bold))
+                                    .foregroundStyle(textColor.opacity(0.48))
+                                Text(displayedTime.islandClock)
+                                    .font(.system(size: 18, weight: .bold, design: .rounded))
+                                    .monospacedDigit()
+                            }
+                            Spacer()
+                            Image(systemName: "chevron.right")
                                 .font(.system(size: 9, weight: .bold))
-                                .foregroundStyle(textColor.opacity(0.48))
-                            Text(clockTimer.displayedTime(for: activityMode, fallbackDuration: timer.duration).islandClock)
-                                .font(.system(size: 18, weight: .bold, design: .rounded))
-                                .monospacedDigit()
+                                .foregroundStyle(textColor.opacity(0.24))
                         }
-                        Spacer()
-                        Image(systemName: "chevron.right")
-                            .font(.system(size: 9, weight: .bold))
-                            .foregroundStyle(textColor.opacity(0.24))
+                        .padding(12)
+                        .background(IslandPalette.surface, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
                     }
-                    .padding(12)
-                    .background(IslandPalette.surface, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
                 }
                 .buttonStyle(ScaleButtonStyle())
 

@@ -47,24 +47,26 @@ struct MediaCard: View {
                 }
             }
 
-            VStack(spacing: 5) {
-                Slider(
-                    value: Binding(
-                        get: { media.progress },
-                        set: { media.seek(to: $0) }
-                    ),
-                    in: 0...1
-                )
-                .tint(hudColor)
-                .controlSize(.mini)
+            LiveMediaProgress { elapsed, remaining, progress in
+                VStack(spacing: 5) {
+                    Slider(
+                        value: Binding(
+                            get: { progress },
+                            set: { media.seek(to: $0) }
+                        ),
+                        in: 0...1
+                    )
+                    .tint(hudColor)
+                    .controlSize(.mini)
 
-                HStack {
-                    Text(media.displayedElapsed.islandClock)
-                    Spacer()
-                    Text("−\(media.remaining.islandClock)")
+                    HStack {
+                        Text(elapsed.islandClock)
+                        Spacer()
+                        Text("−\(remaining.islandClock)")
+                    }
+                    .font(.system(size: 8, weight: .semibold, design: .monospaced))
+                    .foregroundStyle(textColor.opacity(0.35))
                 }
-                .font(.system(size: 8, weight: .semibold, design: .monospaced))
-                .foregroundStyle(textColor.opacity(0.35))
             }
 
             HStack(spacing: compact ? 13 : 18) {

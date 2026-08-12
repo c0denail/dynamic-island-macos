@@ -56,10 +56,12 @@ struct TimerSection: View {
             Spacer()
 
             if clockTimer.isActive(timer.mode) {
-                Text(clockTimer.displayedTime(for: timer.mode, fallbackDuration: timer.duration).islandClock)
-                    .font(.system(size: 17, weight: .bold, design: .rounded))
-                    .monospacedDigit()
-                    .foregroundStyle(timerColor)
+                LiveClockProgress(mode: timer.mode, fallbackDuration: timer.duration) { displayedTime, _ in
+                    Text(displayedTime.islandClock)
+                        .font(.system(size: 17, weight: .bold, design: .rounded))
+                        .monospacedDigit()
+                        .foregroundStyle(timerColor)
+                }
             }
 
             Button("Saat'te Aç") { clockTimer.openClock(mode: timer.mode) }
@@ -105,15 +107,17 @@ struct TimerSection: View {
             }
             .frame(maxWidth: .infinity)
 
-            ProgressRing(progress: clockTimer.progress(for: timer.mode), color: timerColor, size: 146) {
-                VStack(spacing: 4) {
-                    Image(systemName: timer.mode == .stopwatch ? "stopwatch.fill" : "timer")
-                        .font(.system(size: 16, weight: .bold))
-                        .foregroundStyle(timerColor)
-                    Text(clockTimer.displayedTime(for: timer.mode, fallbackDuration: timer.duration).islandClock)
-                        .font(.system(size: 26, weight: .bold, design: .rounded))
-                        .monospacedDigit()
-                        .contentTransition(.numericText())
+            LiveClockProgress(mode: timer.mode, fallbackDuration: timer.duration) { displayedTime, progress in
+                ProgressRing(progress: progress, color: timerColor, size: 146) {
+                    VStack(spacing: 4) {
+                        Image(systemName: timer.mode == .stopwatch ? "stopwatch.fill" : "timer")
+                            .font(.system(size: 16, weight: .bold))
+                            .foregroundStyle(timerColor)
+                        Text(displayedTime.islandClock)
+                            .font(.system(size: 26, weight: .bold, design: .rounded))
+                            .monospacedDigit()
+                            .contentTransition(.numericText())
+                    }
                 }
             }
 
