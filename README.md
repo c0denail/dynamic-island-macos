@@ -59,7 +59,7 @@ Başka bir Mac'e kopyalanabilen DMG paketini oluşturmak için:
 make dmg
 ```
 
-Paket `dist/Dynamic-Island-for-macOS-v1.0.9.dmg` konumuna yazılır. DMG içindeki uygulama **Applications** kısayoluna sürüklenir. Paket Developer ID ile notarize edilmediğinden başka bir Mac'te ilk açılışta **Sistem Ayarları → Gizlilik ve Güvenlik → Yine de Aç** adımı gerekebilir. Paketleme betiği `CODE_SIGN_IDENTITY` verilmişse onu, aksi halde bu Mac'teki Apple Development kimliğini kullanır; kimlik bulunamazsa ad-hoc imzaya geri döner. Kararlı bir imza, Erişilebilirlik izninin güncellemelerde aynı uygulamayla eşleşmesini sağlar.
+Paket `dist/Dynamic-Island-for-macOS-v1.1.0.dmg` konumuna yazılır. DMG içindeki uygulama **Applications** kısayoluna sürüklenir. Paket Developer ID ile notarize edilmediğinden başka bir Mac'te ilk açılışta **Sistem Ayarları → Gizlilik ve Güvenlik → Yine de Aç** adımı gerekebilir. Paketleme betiği `CODE_SIGN_IDENTITY` verilmişse onu, aksi halde bu Mac'teki Apple Development kimliğini kullanır; kimlik bulunamazsa ad-hoc imzaya geri döner. Kararlı bir imza, Erişilebilirlik izninin güncellemelerde aynı uygulamayla eşleşmesini sağlar.
 
 Temiz bir kurulumun ilk çalıştırmasında Dynamic Island; Bildirim, Konum/Wi‑Fi, Bluetooth, Takvim, Medya Otomasyonu ve Erişilebilirlik izinlerini sırayla isteyen kurulum penceresini gösterir.
 
@@ -67,7 +67,7 @@ Release derlemesi, sistem genelindeki Now Playing verisini okuyabilmek için sab
 
 İlk Apple Events medya komutunda macOS, Dynamic Island'ın Music veya Spotify'ı denetlemesi için izin isteyebilir. İzin daha sonra **Sistem Ayarları → Gizlilik ve Güvenlik → Otomasyon** bölümünden değiştirilebilir.
 
-Kilit ekranı medya kartı yalnızca uygulamanın çalıştığı, giriş yapılmış mevcut kullanıcı oturumu kilitlendiğinde gösterilir. Yeniden başlatma sonrası FileVault/preboot veya oturum açılmadan önceki giriş ekranında kullanıcı uygulamaları çalışmadığı için gösterilemez. Hızlı Kullanıcı Değiştirme sırasında önceki kullanıcının medya bilgisi başka oturuma taşınmaz.
+Kilit ekranı medya kartı yalnızca uygulamanın çalıştığı, giriş yapılmış mevcut kullanıcı oturumu kilitlendiğinde gösterilir. Yeniden başlatma sonrası FileVault/preboot veya oturum açılmadan önceki giriş ekranında kullanıcı uygulamaları çalışmadığı için gösterilemez. Hızlı Kullanıcı Değiştirme sırasında önceki kullanıcının medya bilgisi başka oturuma taşınmaz. macOS, üçüncü taraf uygulamalar için kilit ekranına özel pencere yerleştirme API'si sunmadığından kart, çalışma anında doğrulanan özel SkyLight sembolleriyle ayrı kilit alanına taşınır; semboller bulunamazsa parola arayüzünü örtme riski almamak için kart kapalı kalır. Bu deneysel entegrasyon gelecekteki macOS güncellemelerinde yeniden uyarlama gerektirebilir. İlgili MIT atfı uygulama paketindeki `Contents/Resources/Licenses/SkyLightWindow-LICENSE.txt` dosyasındadır.
 
 Diğer uygulamaların bildirim içeriği macOS'un normal bildirim API'sinde paylaşılmadığı için Dynamic Island ilk çalıştırmada **Erişilebilirlik** izni ister. İzin **Sistem Ayarları → Gizlilik ve Güvenlik → Erişilebilirlik** bölümünden verilebilir; bildirim metni yalnızca cihaz üzerinde işlenir. Önceki ad-hoc imzalı bir sürümden geçerken anahtar açık görünmesine rağmen izin eşleşmiyorsa eski Dynamic Island satırını `−` ile kaldırıp `/Applications/Dynamic Island.app` dosyasını `+` ile yeniden ekleyin ve uygulamayı kapatıp açın. Ayarlar'daki **Bildirimi adada önizle** düğmesi görünümü izin vermeden test eder. Sistem tarafından banner olarak gösterilmeyen veya Odak tarafından bastırılan bildirimler aynalanamaz; yerel macOS banner'ı ve Bildirim Merkezi geçmişi silinmez.
 
@@ -82,7 +82,8 @@ Oturum açılışında çalıştır seçeneği için uygulamayı önce `dist` kl
 ## Mimari
 
 - `IslandPanelCoordinator`: Çentiğe hizalanan şeffaf, tüm Spaces üzerinde görünen `NSPanel`.
-- `LockScreenMediaCoordinator`: Yalnızca etkin kullanıcı oturumu kilitliyken saatin altındaki medya kartını görünür tutan, kullanıcı değişiminde veriyi anında gizleyen sınırlı `NSPanel`.
+- `LockScreenMediaCoordinator`: Gerçek oturum kilidini doğrulayan, sınırlı medya panelini özel kilit alanına taşıyan ve kullanıcı değişiminde veriyi anında gizleyen koordinatör.
+- `LockScreenSpaceBridge`: Gerekli özel SkyLight sembollerini çalışma anında güvenli biçimde çözen, desteklenmeyen sistemlerde kapalı kalan kilit alanı köprüsü.
 - `IslandController`: Sunum durumu, hover davranışı, klavye kısayolu ve etkinlik önceliği.
 - `MediaService`: Sistem Now Playing verisi, Chrome/YouTube dahil genel medya denetimi ve Music/Spotify Apple Events yedeği.
 - `TimerService`: Sayaç/kronometre türü ve seçili geri sayım süresi.

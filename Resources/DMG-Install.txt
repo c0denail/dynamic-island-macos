@@ -10,7 +10,7 @@ DYNAMIC ISLAND — KURULUM
    • Önceki sürümde Erişilebilirlik anahtarı açık olduğu halde Saat denetimi çalışmıyorsa eski Dynamic Island satırını “−” ile kaldırın, “+” ile /Applications/Dynamic Island.app dosyasını yeniden ekleyin ve uygulamayı kapatıp açın. Bu imza geçişi yalnızca bir kez gerekir.
 5. Düşük Güç düğmesini ilk kez kullandığınızda macOS yönetici onayını bir kez verin. Sonraki aç/kapat işlemleri yeniden parola istemez.
 6. Şarj adaptörü, Bluetooth kulaklık ve USB/Thunderbolt/SD depolama bağlantıları Dynamic Island'da otomatik animasyon olarak görünür. Bu özellik Ayarlar → Davranış bölümünden kapatılabilir.
-7. Medya çalarken Mac'i kilitlediğinizde kapak, canlı süre ve oynatma denetimleri saatin altında görünür. Ayarlar → Davranış → “Kilit ekranında medya kartını göster” seçeneğinden kapatabilir veya “Önizle” ile kilitlemeden deneyebilirsiniz.
+7. Medya çalarken Mac'i kilitlediğinizde kapak, canlı süre ve oynatma denetimleri saatin altında görünür. Ayarlar → Davranış → “Kilit ekranında medya kartını göster” seçeneğinden kapatabilir veya “Önizle” ile kilitlemeden deneyebilirsiniz. Bu deneysel entegrasyon bir macOS güncellemesinden sonra yeniden uyarlama gerektirebilir.
 
 Uygulama macOS 14 Sonoma veya daha yeni bir sürüm gerektirir.
 

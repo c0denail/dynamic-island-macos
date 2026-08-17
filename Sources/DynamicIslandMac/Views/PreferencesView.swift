@@ -41,7 +41,7 @@ struct PreferencesView: View {
                     }
                 Text("Adayı her yerden açmak için ⌥ Boşluk tuşlarını kullanın.")
                     .foregroundStyle(.secondary)
-                Text("Kilit ekranı kartı yalnızca mevcut kullanıcı oturumu kilitliyken görünür; parola alanını veya kilit güvenliğini değiştirmez.")
+                Text("Kilit ekranı kartı yalnızca mevcut kullanıcı oturumu kilitliyken görünür; parola alanını veya kilit güvenliğini değiştirmez. Bu deneysel özellik macOS güncellemelerinden etkilenebilir.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -160,7 +160,7 @@ struct PreferencesView: View {
                 HStack {
                     Text("Dynamic Island for macOS")
                     Spacer()
-                    Text(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0.9")
+                    Text(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.1.0")
                         .foregroundStyle(.secondary)
                 }
             }

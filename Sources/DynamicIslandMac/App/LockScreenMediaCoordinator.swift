@@ -27,11 +27,15 @@ private final class LockScreenMediaHostingView<Content: View>: NSHostingView<Con
 final class LockScreenMediaCoordinator {
     private let controller: IslandController
     private let panel: LockScreenMediaPanel
+    private var previewPanel: LockScreenMediaPanel?
     private var cancellables = Set<AnyCancellable>()
     private var distributedObservers: [NSObjectProtocol] = []
     private var workspaceObservers: [NSObjectProtocol] = []
     private var localObservers: [NSObjectProtocol] = []
     private var previewTask: Task<Void, Never>?
+    private var lockVerificationTask: Task<Void, Never>?
+    private var lockStateMonitorTask: Task<Void, Never>?
+    private var hasDelegatedLockPanel = false
     private var isLocked = false
     private var isPreviewing = false
     private var isSessionActive = true
@@ -46,21 +50,8 @@ final class LockScreenMediaCoordinator {
             defer: false
         )
 
-        configurePanel()
-
-        let root = LockScreenMediaPlayerView(
-            isPreview: false,
-            dismissPreview: nil
-        )
-        .environmentObject(controller.media)
-        .environmentObject(controller.theme)
-
-        let hosting = LockScreenMediaHostingView(rootView: AnyView(root))
-        hosting.sizingOptions = []
-        hosting.autoresizingMask = [.width, .height]
-        hosting.wantsLayer = true
-        hosting.layer?.backgroundColor = NSColor.clear.cgColor
-        panel.contentView = hosting
+        configurePanel(panel, canBecomeVisibleWithoutLogin: true)
+        updateRootView(on: panel, isPreview: false)
     }
 
     func start() {
@@ -68,8 +59,13 @@ final class LockScreenMediaCoordinator {
         started = true
         installObservers()
         isSessionActive = Self.currentSessionIsActive
-        isLocked = Self.currentSessionIsLocked
-        updateVisibility(animated: false)
+        prepareLockPanelSpaceIfNeeded()
+        if isSessionActive && Self.currentSessionIsLocked {
+            activateLockedPresentation()
+        } else {
+            isLocked = false
+            updateVisibility(animated: false)
+        }
 
         if CommandLine.arguments.contains("--preview-lock-screen-media") {
             preview(duration: 30)
@@ -81,8 +77,13 @@ final class LockScreenMediaCoordinator {
         started = false
         previewTask?.cancel()
         previewTask = nil
+        lockVerificationTask?.cancel()
+        lockVerificationTask = nil
+        lockStateMonitorTask?.cancel()
+        lockStateMonitorTask = nil
         isPreviewing = false
         panel.orderOut(nil)
+        previewPanel?.orderOut(nil)
         cancellables.removeAll()
 
         let distributedCenter = DistributedNotificationCenter.default()
@@ -112,30 +113,31 @@ final class LockScreenMediaCoordinator {
         }
     }
 
-    private func configurePanel() {
-        panel.isOpaque = false
-        panel.backgroundColor = .clear
-        panel.hasShadow = false
-        panel.hidesOnDeactivate = false
-        panel.canHide = false
-        panel.isReleasedWhenClosed = false
-        panel.titleVisibility = .hidden
-        panel.titlebarAppearsTransparent = true
-        panel.animationBehavior = .none
-        panel.isMovable = false
-        panel.isMovableByWindowBackground = false
-        panel.isExcludedFromWindowsMenu = true
-        panel.becomesKeyOnlyIfNeeded = true
-        panel.worksWhenModal = true
-        panel.acceptsMouseMovedEvents = true
-        panel.ignoresMouseEvents = false
-        panel.canBecomeVisibleWithoutLogin = true
-
-        // Stay above the lock-screen wallpaper/screen saver while leaving
-        // higher-level loginwindow authentication UI in control.
-        panel.level = .screenSaver
-        panel.collectionBehavior = [
+    private func configurePanel(
+        _ target: LockScreenMediaPanel,
+        canBecomeVisibleWithoutLogin: Bool
+    ) {
+        target.isOpaque = false
+        target.backgroundColor = .clear
+        target.hasShadow = false
+        target.hidesOnDeactivate = false
+        target.canHide = false
+        target.isReleasedWhenClosed = false
+        target.titleVisibility = .hidden
+        target.titlebarAppearsTransparent = true
+        target.animationBehavior = .none
+        target.isMovable = false
+        target.isMovableByWindowBackground = false
+        target.isExcludedFromWindowsMenu = true
+        target.becomesKeyOnlyIfNeeded = true
+        target.worksWhenModal = true
+        target.acceptsMouseMovedEvents = true
+        target.ignoresMouseEvents = false
+        target.canBecomeVisibleWithoutLogin = canBecomeVisibleWithoutLogin
+        target.level = .screenSaver
+        target.collectionBehavior = [
             .canJoinAllSpaces,
+            .canJoinAllApplications,
             .stationary,
             .fullScreenAuxiliary,
             .ignoresCycle
@@ -183,7 +185,12 @@ final class LockScreenMediaCoordinator {
                     self.isPreviewing = false
                     self.previewTask?.cancel()
                     self.previewTask = nil
+                    self.lockVerificationTask?.cancel()
+                    self.lockVerificationTask = nil
+                    self.lockStateMonitorTask?.cancel()
+                    self.lockStateMonitorTask = nil
                     self.panel.orderOut(nil)
+                    self.previewPanel?.orderOut(nil)
                 }
             }
         )
@@ -213,8 +220,11 @@ final class LockScreenMediaCoordinator {
                 MainActor.assumeIsolated {
                     guard let self else { return }
                     guard self.isSessionActive else { return }
-                    self.isLocked = Self.currentSessionIsLocked
-                    self.updateVisibility(animated: false)
+                    if Self.currentSessionIsLocked {
+                        self.activateLockedPresentation()
+                    } else {
+                        self.screenDidUnlock()
+                    }
                 }
             }
         )
@@ -261,16 +271,80 @@ final class LockScreenMediaCoordinator {
 
     private func screenDidLock() {
         guard isSessionActive else { return }
+        lockVerificationTask?.cancel()
+        // Even a spoofed lock notification may safely dismiss Settings
+        // preview. Closing it synchronously guarantees the ordinary preview
+        // Space never overlaps the real lock transition while CGSession's bit
+        // is still catching up.
+        previewTask?.cancel()
+        previewTask = nil
+        isPreviewing = false
+        previewPanel?.orderOut(nil)
+
+        if Self.currentSessionIsActive && Self.currentSessionIsLocked {
+            activateLockedPresentation()
+            return
+        }
+
+        // The distributed notification can arrive just before CGSession has
+        // committed its lock bit. It can also be spoofed by another process,
+        // so never enter the private lock-screen Space until the real session
+        // state confirms the transition.
+        isLocked = false
+        panel.orderOut(nil)
+        lockVerificationTask = Task { @MainActor [weak self] in
+            for _ in 0..<12 {
+                guard !Task.isCancelled, let self, self.isSessionActive else { return }
+                if Self.currentSessionIsActive && Self.currentSessionIsLocked {
+                    self.activateLockedPresentation()
+                    return
+                }
+                try? await Task.sleep(for: .milliseconds(50))
+            }
+        }
+    }
+
+    private func activateLockedPresentation() {
+        guard isSessionActive,
+              Self.currentSessionIsActive,
+              Self.currentSessionIsLocked else {
+            return
+        }
+
+        lockVerificationTask?.cancel()
+        lockVerificationTask = nil
         previewTask?.cancel()
         previewTask = nil
         isPreviewing = false
         isLocked = true
+        revalidateLockPanelSpace()
         controller.media.refresh()
         updateRootView()
         updateVisibility(animated: false)
+        startLockStateMonitoring()
+    }
+
+    private func startLockStateMonitoring() {
+        lockStateMonitorTask?.cancel()
+        lockStateMonitorTask = Task { @MainActor [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .milliseconds(500))
+                guard !Task.isCancelled, let self else { return }
+                guard self.isSessionActive,
+                      Self.currentSessionIsActive,
+                      Self.currentSessionIsLocked else {
+                    self.screenDidUnlock()
+                    return
+                }
+            }
+        }
     }
 
     private func screenDidUnlock() {
+        lockVerificationTask?.cancel()
+        lockVerificationTask = nil
+        lockStateMonitorTask?.cancel()
+        lockStateMonitorTask = nil
         isLocked = false
         isPreviewing = false
         previewTask?.cancel()
@@ -280,76 +354,155 @@ final class LockScreenMediaCoordinator {
     }
 
     private func updateVisibility(animated: Bool) {
-        let shouldShow = LockScreenMediaPresentationState.shouldShow(
+        prepareLockPanelSpaceIfNeeded()
+
+        let shouldShowLockedCard = LockScreenMediaPresentationState.shouldShow(
             isLocked: isLocked,
-            isPreviewing: isPreviewing,
+            isPreviewing: false,
             isEnabled: lockScreenMediaEnabled,
             hasActiveMedia: controller.media.hasActiveSource,
             isSessionActive: isSessionActive
         )
+        let shouldShowPreview = isSessionActive && isPreviewing && !isLocked
 
-        guard shouldShow else {
-            if panel.isVisible {
-                // Unlock and session-switch transitions must remove the card
-                // immediately so media metadata never lingers over login UI.
+        if shouldShowLockedCard,
+           Self.currentSessionIsActive,
+           Self.currentSessionIsLocked {
+            previewPanel?.orderOut(nil)
+            positionPanel(panel)
+
+            if hasDelegatedLockPanel {
+                show(panel, animated: false)
+            } else {
+                // A normal AppKit window cannot reliably cross into the
+                // loginwindow Space. Never compensate with a near-maximum
+                // global level: that could cover authentication UI without
+                // making the card reliably visible. Unsupported systems fail
+                // closed while Settings preview remains available.
                 panel.orderOut(nil)
-                panel.alphaValue = 1
             }
-            return
+        } else {
+            panel.orderOut(nil)
+            panel.alphaValue = 1
+            if !hasDelegatedLockPanel {
+                panel.level = .screenSaver
+            }
         }
 
-        positionPanel()
-        if panel.isVisible {
-            panel.orderFrontRegardless()
+        if shouldShowPreview {
+            let preview = ensurePreviewPanel()
+            updateRootView(on: preview, isPreview: true)
+            positionPanel(preview)
+            show(preview, animated: animated)
+        } else {
+            previewPanel?.orderOut(nil)
+            previewPanel?.alphaValue = 1
+        }
+    }
+
+    /// Atoll/SkyLight-style lock Spaces are prepared while the Aqua session is
+    /// still active, then the same hidden window is retained for the lifetime
+    /// of the process. Creating or reattaching it during the lock transition is
+    /// less reliable and can race loginwindow's Space switch.
+    private func prepareLockPanelSpaceIfNeeded() {
+        guard lockScreenMediaEnabled, !hasDelegatedLockPanel else { return }
+        revalidateLockPanelSpace()
+    }
+
+    private func revalidateLockPanelSpace() {
+        panel.level = Self.lockScreenSpaceWindowLevel
+        hasDelegatedLockPanel = LockScreenSpaceBridge.shared.delegate(panel)
+        if !hasDelegatedLockPanel {
+            panel.level = .screenSaver
+        }
+    }
+
+    private func show(_ target: LockScreenMediaPanel, animated: Bool) {
+        if target.isVisible {
+            target.orderFrontRegardless()
             return
         }
-
         if animated {
-            panel.alphaValue = 0
-            panel.orderFrontRegardless()
+            target.alphaValue = 0
+            target.orderFrontRegardless()
             NSAnimationContext.runAnimationGroup { context in
                 context.duration = 0.2
                 context.timingFunction = CAMediaTimingFunction(name: .easeOut)
-                panel.animator().alphaValue = 1
+                target.animator().alphaValue = 1
             }
         } else {
-            panel.alphaValue = 1
-            panel.orderFrontRegardless()
+            target.alphaValue = 1
+            target.orderFrontRegardless()
         }
     }
 
     private func updateRootView() {
+        updateRootView(on: panel, isPreview: false)
+        if let previewPanel {
+            updateRootView(on: previewPanel, isPreview: true)
+        }
+    }
+
+    private func updateRootView(
+        on target: LockScreenMediaPanel,
+        isPreview: Bool
+    ) {
+        let dismissPreview: (() -> Void)? = isPreview ? { [weak self] in
+            self?.isPreviewing = false
+            self?.updateRootView()
+            self?.updateVisibility(animated: true)
+        } : nil
         let root = LockScreenMediaPlayerView(
-            isPreview: isPreviewing && !isLocked,
-            dismissPreview: { [weak self] in
-                self?.isPreviewing = false
-                self?.updateRootView()
-                self?.updateVisibility(animated: true)
-            }
+            isPreview: isPreview,
+            dismissPreview: dismissPreview
         )
         .environmentObject(controller.media)
         .environmentObject(controller.theme)
 
-        guard let hosting = panel.contentView as? LockScreenMediaHostingView<AnyView> else {
+        guard let hosting = target.contentView as? LockScreenMediaHostingView<AnyView> else {
             let replacement = LockScreenMediaHostingView(rootView: AnyView(root))
             replacement.sizingOptions = []
             replacement.autoresizingMask = [.width, .height]
             replacement.wantsLayer = true
             replacement.layer?.backgroundColor = NSColor.clear.cgColor
-            panel.contentView = replacement
+            target.contentView = replacement
             return
         }
         hosting.rootView = AnyView(root)
     }
 
+    private func ensurePreviewPanel() -> LockScreenMediaPanel {
+        if let previewPanel {
+            return previewPanel
+        }
+
+        let preview = LockScreenMediaPanel(
+            contentRect: NSRect(origin: .zero, size: Self.cardSize),
+            styleMask: [.borderless, .nonactivatingPanel, .fullSizeContentView],
+            backing: .buffered,
+            defer: false
+        )
+        configurePanel(preview, canBecomeVisibleWithoutLogin: false)
+        updateRootView(on: preview, isPreview: true)
+        previewPanel = preview
+        return preview
+    }
+
     private func positionPanel() {
+        positionPanel(panel)
+        if let previewPanel {
+            positionPanel(previewPanel)
+        }
+    }
+
+    private func positionPanel(_ target: LockScreenMediaPanel) {
         guard let screen = targetScreen else { return }
         let frame = LockScreenMediaPresentationState.cardFrame(
             screenFrame: screen.frame,
             visibleFrame: screen.visibleFrame,
             cardSize: Self.cardSize
         )
-        panel.setFrame(frame, display: panel.isVisible, animate: false)
+        target.setFrame(frame, display: target.isVisible, animate: false)
     }
 
     private var targetScreen: NSScreen? {
@@ -371,6 +524,10 @@ final class LockScreenMediaCoordinator {
     }
 
     private static let cardSize = CGSize(width: 560, height: 270)
+
+    private static var lockScreenSpaceWindowLevel: NSWindow.Level {
+        NSWindow.Level(rawValue: Int(CGShieldingWindowLevel()))
+    }
 
     private static var currentSessionIsLocked: Bool {
         guard let session = CGSessionCopyCurrentDictionary() as? [String: Any]

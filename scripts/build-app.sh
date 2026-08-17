@@ -57,6 +57,7 @@ make -s -B -C "$adapter_dir" \
 rm -rf "$app_dir"
 mkdir -p \
     "$app_dir/Contents/MacOS" \
+    "$app_dir/Contents/Resources/Licenses" \
     "$app_dir/Contents/Resources/NowPlaying" \
     "$app_dir/Contents/Resources/Pets" \
     "$app_dir/Contents/Helpers" \
@@ -80,6 +81,9 @@ lipo -create \
     "$adapter_dir/$mini_x86_dir/MediaRemoteMini.dylib" \
     -output "$app_dir/Contents/Resources/NowPlaying/MediaRemoteMini.dylib"
 ditto "$project_dir/Resources/MediaRemoteMini-LICENSE.txt" "$app_dir/Contents/Resources/NowPlaying/LICENSE.txt"
+ditto \
+    "$project_dir/Resources/SkyLightWindow-LICENSE.txt" \
+    "$app_dir/Contents/Resources/Licenses/SkyLightWindow-LICENSE.txt"
 for pet_asset_name in "${pet_asset_names[@]}"; do
     pet_asset_path="$project_dir/Resources/Pets/$pet_asset_name.png"
     if [[ ! -f "$pet_asset_path" ]]; then
