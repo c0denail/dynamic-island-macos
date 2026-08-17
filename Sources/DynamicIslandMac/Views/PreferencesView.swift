@@ -10,6 +10,7 @@ struct PreferencesView: View {
     @AppStorage("showBrightnessHUD") private var showBrightnessHUD = true
     @AppStorage("showNotificationHUD") private var showNotificationHUD = true
     @AppStorage("showHardwareHUD") private var showHardwareHUD = true
+    @AppStorage("showLockScreenMedia") private var showLockScreenMedia = true
     @AppStorage("islandPetEnabled") private var isPetEnabled = true
     @AppStorage("islandPetKind") private var selectedPet = IslandPetKind.byte.rawValue
     @AppStorage("islandPetSpeed") private var petSpeed = 1.0
@@ -26,11 +27,22 @@ struct PreferencesView: View {
                         island.notifications.featurePreferenceDidChange(enabled: enabled)
                     }
                 Toggle("Şarj ve aygıt bağlantılarını adada göster", isOn: $showHardwareHUD)
+                HStack {
+                    Toggle("Kilit ekranında medya kartını göster", isOn: $showLockScreenMedia)
+                    Spacer()
+                    Button("Önizle") {
+                        LockScreenMediaCoordinator.requestPreview()
+                    }
+                    .controlSize(.small)
+                }
                 Toggle("Oturum açıldığında çalıştır", isOn: $launchAtLogin)
                     .onChange(of: launchAtLogin) { _, enabled in
                         updateLaunchAtLogin(enabled)
                     }
                 Text("Adayı her yerden açmak için ⌥ Boşluk tuşlarını kullanın.")
+                    .foregroundStyle(.secondary)
+                Text("Kilit ekranı kartı yalnızca mevcut kullanıcı oturumu kilitliyken görünür; parola alanını veya kilit güvenliğini değiştirmez.")
+                    .font(.caption)
                     .foregroundStyle(.secondary)
             }
 
@@ -115,6 +127,7 @@ struct PreferencesView: View {
 
             Section("Entegrasyonlar") {
                 Label("Music ve Spotify oynatma denetimi", systemImage: "music.note")
+                Label("Kilit ekranında kapak, canlı süre ve medya denetimleri", systemImage: "lock.fill")
                 Label("macOS Saat sayaç ve kronometre canlı eşitlemesi", systemImage: "stopwatch")
                 Label("macOS bildirimleri", systemImage: "bell")
                 Label("Pil, ağ, çıkış sesi ve ekran parlaklığı", systemImage: "macbook")
@@ -147,7 +160,7 @@ struct PreferencesView: View {
                 HStack {
                     Text("Dynamic Island for macOS")
                     Spacer()
-                    Text(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0.8")
+                    Text(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0.9")
                         .foregroundStyle(.secondary)
                 }
             }

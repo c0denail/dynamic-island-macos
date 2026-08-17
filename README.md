@@ -7,6 +7,7 @@ MacBook çentiğiyle fiziksel olarak hizalanan, SwiftUI ile yazılmış yerel bi
 - Gerçek çentik geometrisini `NSScreen.auxiliaryTopLeftArea` ve `auxiliaryTopRightArea` ile algılar; boşta tamamen fiziksel çentiğin arkasına gizlenir.
 - Chrome/YouTube, Safari, Arc, Music ve Spotify dahil macOS “Şu An Çalıyor” oturumundaki medyanın gerçek kapağını, geçen/kalan süresini ve canlı ilerleme çizgisini gösterir.
 - Sistem genelinde oynat/duraklat, önceki/sonraki parça, ±15 saniye sarma ve ilerleme çizgisinden konum değiştirme denetimleri sunar.
+- Mac kilitlendiğinde saatin altında Alcove tarzı saydam cam medya kartı gösterir; kapak, başlık, canlı geçen/kalan süre, sürüklenebilir ilerleme çizgisi ve medya denetimleri kilit açılmadan kullanılabilir. Kart parola alanını veya macOS kilit güvenliğini değiştirmez ve Ayarlar’dan kapatılabilir.
 - Medya etkinken adanın herhangi bir noktasına tıklamak doğrudan Medya görünümünü, boşta tıklamak genel menüyü açar; fiziksel çentiğin merkezi dahil tüm ada yüzeyi anında tepki verir ve ada dışına tıklamak geniş görünümü kapatır.
 - Açılma, küçülme, maskot, waveform ve canlı ilerleme animasyonları VSync ile ekranın doğal yenileme hızında, desteklenen ProMotion ekranlarda 120 FPS çalışır; 60 Hz ekranlarda doğal olarak 60 FPS gösterilir.
 - macOS bildirim banner'larını uygulama simgesi, başlık ve içerikle Dynamic Island'da gösterir; art arda gelen bildirimleri sıraya alır ve adaya tıklanınca gerçek bildirim eylemini veya kaynak uygulamayı açar.
@@ -58,13 +59,15 @@ Başka bir Mac'e kopyalanabilen DMG paketini oluşturmak için:
 make dmg
 ```
 
-Paket `dist/Dynamic-Island-for-macOS-v1.0.8.dmg` konumuna yazılır. DMG içindeki uygulama **Applications** kısayoluna sürüklenir. Paket Developer ID ile notarize edilmediğinden başka bir Mac'te ilk açılışta **Sistem Ayarları → Gizlilik ve Güvenlik → Yine de Aç** adımı gerekebilir. Paketleme betiği `CODE_SIGN_IDENTITY` verilmişse onu, aksi halde bu Mac'teki Apple Development kimliğini kullanır; kimlik bulunamazsa ad-hoc imzaya geri döner. Kararlı bir imza, Erişilebilirlik izninin güncellemelerde aynı uygulamayla eşleşmesini sağlar.
+Paket `dist/Dynamic-Island-for-macOS-v1.0.9.dmg` konumuna yazılır. DMG içindeki uygulama **Applications** kısayoluna sürüklenir. Paket Developer ID ile notarize edilmediğinden başka bir Mac'te ilk açılışta **Sistem Ayarları → Gizlilik ve Güvenlik → Yine de Aç** adımı gerekebilir. Paketleme betiği `CODE_SIGN_IDENTITY` verilmişse onu, aksi halde bu Mac'teki Apple Development kimliğini kullanır; kimlik bulunamazsa ad-hoc imzaya geri döner. Kararlı bir imza, Erişilebilirlik izninin güncellemelerde aynı uygulamayla eşleşmesini sağlar.
 
 Temiz bir kurulumun ilk çalıştırmasında Dynamic Island; Bildirim, Konum/Wi‑Fi, Bluetooth, Takvim, Medya Otomasyonu ve Erişilebilirlik izinlerini sırayla isteyen kurulum penceresini gösterir.
 
 Release derlemesi, sistem genelindeki Now Playing verisini okuyabilmek için sabitlenmiş `MediaRemoteMini` BSD bileşenini indirip uygulama paketine ekler. `swift run` ile çalıştırılan geliştirme sürümü bu paketlenmiş köprü bulunmadığında Music/Spotify Apple Events yöntemine geri döner.
 
 İlk Apple Events medya komutunda macOS, Dynamic Island'ın Music veya Spotify'ı denetlemesi için izin isteyebilir. İzin daha sonra **Sistem Ayarları → Gizlilik ve Güvenlik → Otomasyon** bölümünden değiştirilebilir.
+
+Kilit ekranı medya kartı yalnızca uygulamanın çalıştığı, giriş yapılmış mevcut kullanıcı oturumu kilitlendiğinde gösterilir. Yeniden başlatma sonrası FileVault/preboot veya oturum açılmadan önceki giriş ekranında kullanıcı uygulamaları çalışmadığı için gösterilemez. Hızlı Kullanıcı Değiştirme sırasında önceki kullanıcının medya bilgisi başka oturuma taşınmaz.
 
 Diğer uygulamaların bildirim içeriği macOS'un normal bildirim API'sinde paylaşılmadığı için Dynamic Island ilk çalıştırmada **Erişilebilirlik** izni ister. İzin **Sistem Ayarları → Gizlilik ve Güvenlik → Erişilebilirlik** bölümünden verilebilir; bildirim metni yalnızca cihaz üzerinde işlenir. Önceki ad-hoc imzalı bir sürümden geçerken anahtar açık görünmesine rağmen izin eşleşmiyorsa eski Dynamic Island satırını `−` ile kaldırıp `/Applications/Dynamic Island.app` dosyasını `+` ile yeniden ekleyin ve uygulamayı kapatıp açın. Ayarlar'daki **Bildirimi adada önizle** düğmesi görünümü izin vermeden test eder. Sistem tarafından banner olarak gösterilmeyen veya Odak tarafından bastırılan bildirimler aynalanamaz; yerel macOS banner'ı ve Bildirim Merkezi geçmişi silinmez.
 
@@ -79,6 +82,7 @@ Oturum açılışında çalıştır seçeneği için uygulamayı önce `dist` kl
 ## Mimari
 
 - `IslandPanelCoordinator`: Çentiğe hizalanan şeffaf, tüm Spaces üzerinde görünen `NSPanel`.
+- `LockScreenMediaCoordinator`: Yalnızca etkin kullanıcı oturumu kilitliyken saatin altındaki medya kartını görünür tutan, kullanıcı değişiminde veriyi anında gizleyen sınırlı `NSPanel`.
 - `IslandController`: Sunum durumu, hover davranışı, klavye kısayolu ve etkinlik önceliği.
 - `MediaService`: Sistem Now Playing verisi, Chrome/YouTube dahil genel medya denetimi ve Music/Spotify Apple Events yedeği.
 - `TimerService`: Sayaç/kronometre türü ve seçili geri sayım süresi.

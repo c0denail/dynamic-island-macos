@@ -1,0 +1,44 @@
+{
+    "configurations": [
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:Dynamic Island for MacOS}",
+            "name": "Debug DynamicIslandMac",
+            "target": "DynamicIslandMac",
+            "configuration": "debug",
+            "preLaunchTask": "swift: Build Debug DynamicIslandMac"
+        },
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:Dynamic Island for MacOS}",
+            "name": "Release DynamicIslandMac",
+            "target": "DynamicIslandMac",
+            "configuration": "release",
+            "preLaunchTask": "swift: Build Release DynamicIslandMac"
+        },
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:Dynamic Island for MacOS}",
+            "name": "Debug DynamicIslandPowerHelper",
+            "target": "DynamicIslandPowerHelper",
+            "configuration": "debug",
+            "preLaunchTask": "swift: Build Debug DynamicIslandPowerHelper"
+        },
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:Dynamic Island for MacOS}",
+            "name": "Release DynamicIslandPowerHelper",
+            "target": "DynamicIslandPowerHelper",
+            "configuration": "release",
+            "preLaunchTask": "swift: Build Release DynamicIslandPowerHelper"
+        }
+    ]
+}
